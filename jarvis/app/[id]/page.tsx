@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import ChatContainer from "../_components/chat/ChatContainer";
 import { useChat } from "../ChatProvider";
 import { useEffect } from "react";
+import { gravatarUrl } from "@/utils/gravatarUtils";
 
 const ChatPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ const ChatPage = () => {
             key={message.id}
             role={message.role}
             content={message.content}
+            avatarUrl={gravatarUrl}
           />
         ))}
       </ChatContainer.Stream>
