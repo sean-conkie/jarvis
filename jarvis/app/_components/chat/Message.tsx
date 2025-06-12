@@ -1,3 +1,5 @@
+import Spinner from "../Spinner";
+
 type BaseProps = {
   content?: string;
 };
@@ -26,7 +28,7 @@ const UserMessage = ({ content }: BaseProps) => {
 
 const AssistantMessage = ({ content }: BaseProps) => {
   return (
-    <div className="flex items-center justify-start w-full">{content}</div>
+    <div className="flex items-center justify-start w-full">{content ? content : <Spinner className="text-primary"/>}</div>
   );
 };
 

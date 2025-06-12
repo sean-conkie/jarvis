@@ -22,7 +22,7 @@ const ChatContainer: ChatContainerComponent = ({ children }: BaseProps) => {
 
 const Stream: React.FC<BaseProps> = ({ children }) => {
   return (
-    <div className="flex flex-col w-full p-4 rounded-md grow bg-white gap-4">
+    <div className="flex flex-col w-full p-4 rounded-md grow bg-base-100 gap-4">
       {children}
     </div>
   );

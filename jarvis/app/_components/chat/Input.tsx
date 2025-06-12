@@ -41,18 +41,18 @@ export const Input: React.FC<InputProps> = ({
   };
 
   return (
-    <div className="flex items-center p-4 w-full rounded-md bg-white">
+    <div className="flex items-center p-4 w-full rounded-md bg-white gap-2">
       <input
         type="text"
         placeholder="Type your message..."
-        className="flex-grow p-2 border rounded"
+        className="input grow"
         onChange={onChange}
         disabled={isLoading}
         value={inputValue}
         onKeyDown={handleKeyDown}
       />
       <button
-        className="ml-2 px-4 py-2 bg-blue-500 text-white rounded"
+        className="btn btn-primary"
         onClick={handleSubmit}
         disabled={isLoading}
       >
