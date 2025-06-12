@@ -1,111 +1,67 @@
-import uuid
+"""API main module."""
 
-from ag_ui.core import (
-    EventType,
-    RunAgentInput,
-    RunFinishedEvent,
-    RunStartedEvent,
-    TextMessageContentEvent,
-    TextMessageEndEvent,
-    TextMessageStartEvent,
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import APIRouter, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.logging import DefaultFormatter
+
+from api.v1.router import router as v1_router
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+root_logger = logging.getLogger()
+for handler in root_logger.handlers:
+    handler.setFormatter(DefaultFormatter(fmt="%(levelprefix)s %(message)s"))
+
+
+@asynccontextmanager
+async def lifespan(
+    app: FastAPI,  # pylint: disable=unused-argument, redefined-outer-name
+):
+    """Application lifespan context manager."""
+    yield
+
+
+app = FastAPI(
+    lifespan=lifespan,
+    openapi_tags=[
+        {
+            "name": "chat",
+            "description": "Chat service.",
+        },
+    ],
 )
-from ag_ui.encoder import EventEncoder
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-from openai import AzureOpenAI
 
-from api.src.messages.create import create_message
-from credentials import AzureCredentials
+# Define the origins that are allowed to make cross-origin requests
+origins = [
+    "http://localhost:3000",  # React app running on localhost:3000
+    "http://127.0.0.1:3000",  # Alternative localhost
+    # Add other origins if needed
+]
 
-app = FastAPI(title="AG-UI Endpoint")
-
-
-@app.post("/awp")
-async def my_endpoint(input_data: RunAgentInput):
-    async def event_generator():
-        # Create an event encoder to properly format SSE events
-        encoder = EventEncoder()
-
-        # Send run started event
-        yield encoder.encode(
-            RunStartedEvent(
-                type=EventType.RUN_STARTED,
-                thread_id=input_data.thread_id,
-                run_id=input_data.run_id,
-            )
-        )
-
-        # Initialize OpenAI client
-        credentials = AzureCredentials()
-        client = AzureOpenAI(
-            api_key=credentials.api_key.get_secret_value(),
-            azure_endpoint=credentials.openai_api_base,
-            api_version=credentials.openai_api_version,
-        )
-
-        # Generate a message ID for the assistant's response
-        message_id = uuid.uuid4().hex
-
-        # Send text message start event
-        yield encoder.encode(
-            TextMessageStartEvent(
-                type=EventType.TEXT_MESSAGE_START,
-                message_id=message_id,
-                role="assistant",
-            )
-        )
-
-        # Create a streaming completion request
-        stream = client.chat.completions.create(
-            model="gpt-4o_2024-08-06",
-            messages=[
-                create_message(**input_message.model_dump())
-                for input_message in input_data.messages
-            ],
-            stream=False,
-        )
-
-        # Process the streaming response and send content events
-        # for chunk in stream:
-        #     if (
-        #         hasattr(chunk.choices[0].delta, "content")
-        #         and chunk.choices[0].delta.content
-        #     ):
-        #         content = chunk.choices[0].delta.content
-        #         yield encoder.encode(
-        #             TextMessageContentEvent(
-        #                 type=EventType.TEXT_MESSAGE_CONTENT,
-        #                 message_id=message_id,
-        #                 delta=content,
-        #             )
-        #         )
-
-        yield encoder.encode(
-            TextMessageContentEvent(
-                type=EventType.TEXT_MESSAGE_CONTENT,
-                message_id=message_id,
-                delta=stream.choices[0].message.content or "",
-            )
-        )
-
-        # Send text message end event
-        yield encoder.encode(
-            TextMessageEndEvent(type=EventType.TEXT_MESSAGE_END, message_id=message_id)
-        )
-
-        # Send run finished event
-        yield encoder.encode(
-            RunFinishedEvent(
-                type=EventType.RUN_FINISHED,
-                thread_id=input_data.thread_id,
-                run_id=input_data.run_id,
-            )
-        )
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+# Add the CORSMiddleware to the FastAPI app
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Allow these origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 
-if __name__ == "__main__":
-    import uvicorn
+@app.get("/", description="Get a greeting message.")
+async def get() -> dict:
+    """Return a greeting message.
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    Returns:
+        dict: A dictionary containing a greeting message.
+
+    """
+    return {"message": "Hello, World!"}
+
+
+api = APIRouter(prefix="/api")
+api.include_router(v1_router)
+app.include_router(api)
