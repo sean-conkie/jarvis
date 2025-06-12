@@ -18,8 +18,8 @@ const Message: React.FC<MessageProps> = ({ content, role }: MessageProps) => {
 
 const UserMessage = ({ content }: BaseProps) => {
   return (
-    <div className="flex items-center justify-end w-full">
-      <div className="bg-blue-500 text-white p-2 rounded-lg  max-w-96">{content}</div>
+    <div className="chat chat-end">
+      <div className="chat-bubble">{content}</div>
     </div>
   );
 };
