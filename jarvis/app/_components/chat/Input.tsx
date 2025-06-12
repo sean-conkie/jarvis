@@ -40,6 +40,7 @@ export const Input: React.FC<InputProps> = ({
         className="flex-grow p-2 border rounded"
         onChange={onChange}
         disabled={isLoading}
+        value={inputValue}
       />
       <button
         className="ml-2 px-4 py-2 bg-blue-500 text-white rounded"
@@ -51,6 +52,7 @@ export const Input: React.FC<InputProps> = ({
     </div>
   );
 };
+
 export type InputProps = {
   threadId?: string;
   onSubmit?: (message: string, threadId: string) => Promise<void>;

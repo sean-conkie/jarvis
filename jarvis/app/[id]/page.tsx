@@ -18,9 +18,11 @@ const ChatPage = () => {
       <ChatContainer.Stream>
         {/* The Stream component can be used to display messages or chat history */}
         {messages.map((message) => (
-          <div key={message.id} className="border-2 border-amber-300 rounded-md m-2 p-2">
-            {message.content}
-          </div>
+          <ChatContainer.Message
+            key={message.id}
+            role={message.role}
+            content={message.content}
+          />
         ))}
       </ChatContainer.Stream>
       <ChatContainer.Input threadId={id} onSubmit={handleSubmitMessage} />
