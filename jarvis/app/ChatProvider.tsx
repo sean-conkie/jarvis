@@ -130,6 +130,39 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             return;
           }
 
+          // if the event is message start, set the messageId
+          if (validated.data.type === EventType.TEXT_MESSAGE_START) {
+            // If the event is a message start, create a new message object
+            const newEventMessage: Message = {
+              id: validated.data.messageId || uuidv4(),
+              content: "",
+              role: validated.data.role || "assistant",
+            };
+            // Add the new message to the messages state
+            setMessages((prevMessages) => [...prevMessages, newEventMessage]);
+          } else if (validated.data.type === EventType.TEXT_MESSAGE_CONTENT) {
+            // If the event is a message content, append it to the existing message
+            const messageId = validated.data.messageId;
+            const content = validated.data.delta;
+            if (messageId) {
+              setMessages((prevMessages) =>
+                prevMessages.map((msg) =>
+                  msg.id === messageId
+                    ? {
+                        ...msg,
+                        content: content,
+                      }
+                    : msg
+                )
+              );
+            }
+          } else if (validated.data.type === EventType.RUN_ERROR) {
+            // If the event is a run error, log the error and close the event source
+            console.error("Run error:", validated.data.message);
+            eventSource.close();
+            return;
+          }
+
           setMessageEvents((prevEvents) => [...prevEvents, validated.data]);
 
           if (validated.data.type === EventType.RUN_FINISHED) {
