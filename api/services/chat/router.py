@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from openai import AzureOpenAI
 
 from api.src.messages.create import create_message
+from api.src.prompts import JARVIS_SYSTEM_PROMPT
 from credentials import AzureCredentials
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -62,29 +63,23 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
     )
 
     # Create a streaming completion request
-    stream = client.chat.completions.create(
-        model="gpt-4o_2024-08-06",
-        messages=[
+
+    messages = [
+        create_message(role="system", content=JARVIS_SYSTEM_PROMPT),
+    ]
+
+    messages.extend(
+        [
             create_message(**input_message.model_dump())
             for input_message in message.messages
-        ],
-        stream=False,
+        ]
     )
 
-    # Process the streaming response and send content events
-    # for chunk in stream:
-    #     if (
-    #         hasattr(chunk.choices[0].delta, "content")
-    #         and chunk.choices[0].delta.content
-    #     ):
-    #         content = chunk.choices[0].delta.content
-    #         yield encoder.encode(
-    #             TextMessageContentEvent(
-    #                 type=EventType.TEXT_MESSAGE_CONTENT,
-    #                 message_id=message_id,
-    #                 delta=content,
-    #             )
-    #         )
+    stream = client.chat.completions.create(
+        model="gpt-4o_2024-08-06",
+        messages=messages,
+        stream=False,
+    )
 
     yield encoder.encode(
         TextMessageContentEvent(
