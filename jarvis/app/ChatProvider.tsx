@@ -1,7 +1,7 @@
 "use client";
 
-import { backendAxiosInstance } from "@/utils/backend";
-import { newStream } from "@/utils/stream";
+import { backendAxiosInstance } from "@/utils/backendUtils";
+import { newStream } from "@/utils/streamUtils";
 import { EventSchemas, EventType, Message, RunAgentInput } from "@ag-ui/core";
 import React, {
   createContext,
