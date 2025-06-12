@@ -1,6 +1,14 @@
 import * as crypto from 'crypto';
 
-// CRITICAL: Generate the SHA256 hash correctly for all Gravatar operations
+/**
+ * Generates a SHA256 hash of the provided email address for use with Gravatar.
+ *
+ * The email is first trimmed and converted to lowercase before hashing,
+ * as required by Gravatar's specification.
+ *
+ * @param email - The email address to hash.
+ * @returns The SHA256 hash of the normalized email as a hexadecimal string.
+ */
 export function getGravatarHash(email: string): string {
   // Trim and lowercase the email - BOTH steps are required
   email = email.trim().toLowerCase();
