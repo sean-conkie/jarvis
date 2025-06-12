@@ -32,6 +32,14 @@ export const Input: React.FC<InputProps> = ({
       console.error("Thread ID is not defined.");
     }
   };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault(); // Prevent default behavior of Enter key
+      handleSubmit();
+    }
+  };
+
   return (
     <div className="flex items-center p-4 w-full rounded-md bg-white">
       <input
@@ -41,6 +49,7 @@ export const Input: React.FC<InputProps> = ({
         onChange={onChange}
         disabled={isLoading}
         value={inputValue}
+        onKeyDown={handleKeyDown}
       />
       <button
         className="ml-2 px-4 py-2 bg-blue-500 text-white rounded"
