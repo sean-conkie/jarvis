@@ -18,3 +18,20 @@ dependencies = [
 dev = [
     "ruff>=0.11.13",
 ]
+
+[[project.authors]]
+name = "Sean Conkie"
+email = "sean.conkie@sky.uk"
+
+[tool.ruff]
+extend-exclude = [ "tests", "alembic" ]
+respect-gitignore = true
+line-length = 120
+indent-width = 4
+show-fixes = true
+unsafe-fixes = true
+
+
+[tool.ruff.lint]
+select = [ "D", "E", "F", "I", "N", "W",]
+ignore = [ "D107", "D203", "D213", "D400", "D408", "D407", "D409", "D105",]
