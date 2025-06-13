@@ -3,6 +3,8 @@ import { PropsWithChildren } from "react";
 import SafeImage from "../SafeImage";
 import Spinner from "../Spinner";
 import Badge from "../Badge";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export interface ToolCall {
   id: string;
@@ -69,7 +71,9 @@ const AssistantMessage = ({ content, toolCalls }: BaseProps) => {
       </div>
       <div>
         {content ? (
-          content
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
         ) : toolCalls ? null : (
           <Spinner className="text-primary" />
         )}
