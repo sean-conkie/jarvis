@@ -16,7 +16,6 @@ export const Input: React.FC<InputProps> = ({
   const handleSubmit = async () => {
     if (threadId) {
       // Handle the message submission logic here
-      console.log(`Message sent to thread ${threadId}: ${inputValue}`);
       if (onSubmit) {
         try {
           setIsLoading(true); // Set loading state

@@ -18,6 +18,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -73,7 +74,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
   // State to hold messages
   const [messages, setMessages] = useState<Message[]>([]);
-  const messagesRef = React.useRef<Message[]>(messages);
+  const messagesRef = useRef<Message[]>(messages);
 
   // Memoizes an object containing the current messages.
   const messagesValue = useMemo(() => {
@@ -94,35 +95,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   }, [messageEvents]);
 
   // map toolCallId to messageId
-  const [toolCallIdToMessageId, setToolCallIdToMessageId] = useState<
-    Record<string, string>
-  >({});
-
-  // Callback to update the toolCallId to messageId map
-  const updateToolCallToMessageidMap = useCallback(() => {
-    const map: Record<string, string> = {};
-    messages.forEach((message) => {
-      if ("toolCalls" in message && message.toolCalls) {
-        message.toolCalls.forEach((toolCall) => {
-          map[toolCall.id] = message.id;
-        });
-      }
-    });
-    setToolCallIdToMessageId(map);
-  }, [messages]);
-
-  // ref to hold the toolCallId to messageId map
-  const toolCallIdToMessageIdRef = React.useRef(toolCallIdToMessageId);
-
-  // Update the ref whenever toolCallIdToMessageId changes
-  useEffect(() => {
-    toolCallIdToMessageIdRef.current = toolCallIdToMessageId;
-  }, [toolCallIdToMessageId]);
+  const toolCallMapRef = useRef<Record<string, string>>({});
 
   // callback to get message from toolCallId
   const getMessageFromToolCallId = useCallback(
     (toolCallId: string): Message | undefined => {
-      const messageId = toolCallIdToMessageIdRef.current[toolCallId];
+      const messageId = toolCallMapRef.current[toolCallId];
       if (!messageId) {
         console.error(`Message ID not found for tool call ID: ${toolCallId}`);
         return undefined;
@@ -136,10 +114,16 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   const getToolCallFromMessage = useCallback(
     (toolCallId: string): ToolCall | undefined => {
       const message = getMessageFromToolCallId(toolCallId);
-      if (!message || !("toolCalls" in message) || !message.toolCalls) {
-        console.error(
-          `No tool calls found for message with ID: ${message?.id}`
-        );
+      if (!message) {
+        console.error(`Message not found for tool call ID: ${toolCallId}`);
+        return undefined;
+      }
+
+      if (!("toolCalls" in message)) {
+        return undefined;
+      }
+
+      if (!message.toolCalls) {
         return undefined;
       }
       return message.toolCalls.find((tc) => tc.id === toolCallId);
@@ -208,6 +192,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             return;
           }
 
+          setMessageEvents((prevEvents) => [...prevEvents, validated.data]);
+          console.log("Received event:", validated.data.type);
+
           // if the event is message start, set the messageId
           if (validated.data.type === EventType.TEXT_MESSAGE_START) {
             // If the event is a message start, create a new message object
@@ -217,6 +204,10 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               role: validated.data.role || "assistant",
               toolCalls: [],
             };
+
+            // Add the new message to the messagesRef
+            messagesRef.current = [...messagesRef.current, newEventMessage];
+
             // Add the new message to the messages state
             setMessages((prevMessages) => [...prevMessages, newEventMessage]);
           } else if (validated.data.type === EventType.TOOL_CALL_START) {
@@ -225,7 +216,8 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             let parentMessage: Message | undefined = messagesRef.current.find(
               (msg) => msg.id === parentMessageId
             );
-            if (!parentMessage) {
+
+            if (parentMessage === undefined) {
               // create a new parent message if it doesn't exist
               const newParentMessage: Message = {
                 id: parentMessageId,
@@ -233,6 +225,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 role: "assistant",
                 toolCalls: [],
               };
+
+              // Add the new parent message to the messagesRef
+              messagesRef.current = [...messagesRef.current, newParentMessage];
+
+              // Add the new parent message to the messages state
               setMessages((prevMessages) => [
                 ...prevMessages,
                 newParentMessage,
@@ -261,15 +258,21 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             // Add the tool call to the parent message's toolCalls array
             parentMessage.toolCalls!.push(toolCall);
 
+            // Update the toolCallId to messageId map
+            toolCallMapRef.current[validated.data.toolCallId] =
+              parentMessage.id;
+
+            // Update the messagesRef with the new parent message
+            messagesRef.current = messagesRef.current.map((msg) =>
+              msg.id === parentMessageId ? parentMessage : msg
+            );
+
             // Update the messages state with the new parent message
             setMessages((prevMessages) =>
               prevMessages.map((msg) =>
                 msg.id === parentMessageId ? parentMessage : msg
               )
             );
-
-            // Update the toolCallId to messageId map
-            updateToolCallToMessageidMap();
           } else if (validated.data.type === EventType.TEXT_MESSAGE_CONTENT) {
             // If the event is a message content, append it to the existing message
             const messageId = validated.data.messageId;
@@ -291,11 +294,39 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             const message = getMessageFromToolCallId(toolCallArgs.toolCallId);
             const toolCall = getToolCallFromMessage(toolCallArgs.toolCallId);
 
-            if (toolCall && message) {
+            if (!message) {
+              // If the message is not found, log an error and return
+              console.error(
+                `Message not found for tool call ID: ${toolCallArgs.toolCallId}`
+              );
+              return;
+            }
+
+            // If the tool call is not found, log an error and return
+            if (!toolCall) {
+              console.error(
+                `Tool call not found for tool call ID: ${toolCallArgs.toolCallId}`
+              );
+              return;
+            }
+
+            if (toolCall && message && "toolCalls" in message) {
               toolCall.function.arguments = toolCallArgs.delta;
+
+              // Update the tool call in the message's toolCalls array
+              message.toolCalls = message.toolCalls!.map((tc) =>
+                tc.id === toolCall.id ? toolCall : tc
+              );
+
+              // update the message ref with the updated message
+              messagesRef.current = messagesRef.current.map((msg) =>
+                msg.id === message.id ? message : msg
+              );
+
+              // Update the tool call in the message's toolCalls array
               setMessages((prevMessages) =>
                 prevMessages.map((msg) =>
-                  msg.id === message.id ? { ...msg } : msg
+                  msg.id === message.id ? message : msg
                 )
               );
             }
@@ -328,12 +359,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             return;
           }
 
-          setMessageEvents((prevEvents) => [...prevEvents, validated.data]);
-
           if (validated.data.type === EventType.RUN_FINISHED) {
             // If the run is finished, close the event source
             eventSource.close();
           }
+
+          console.log("Finished processing event:", validated.data.type);
         };
 
         eventSource.onerror = (err) => {
@@ -344,11 +375,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         console.error("Something went wrong with chat 😔");
       }
     },
-    [
-      getMessageFromToolCallId,
-      getToolCallFromMessage,
-      updateToolCallToMessageidMap,
-    ]
+    [getMessageFromToolCallId, getToolCallFromMessage]
   );
 
   return (
