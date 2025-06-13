@@ -204,6 +204,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               )
             );
 
+            // remove the placeholder message from the messagesRef
+            messagesRef.current = messagesRef.current.filter(
+              (msg) => msg.id !== "placeholder" && msg.content !== undefined
+            );
+
             // If the event is a message start, create a new message object
             const newEventMessage: Message = {
               id: validated.data.messageId || uuidv4(),
@@ -225,6 +230,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               prevMessages.filter(
                 (msg) => msg.id !== "placeholder" && msg.content !== undefined
               )
+            );
+
+            // remove the placeholder message from the messagesRef
+            messagesRef.current = messagesRef.current.filter(
+              (msg) => msg.id !== "placeholder" && msg.content !== undefined
             );
 
             // is there a parentMessageId?
@@ -286,19 +296,14 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             );
 
             // Update the messages state with the new parent message
-            setMessages((prevMessages) =>
-              prevMessages.map((msg) =>
-                msg.id === parentMessageId ? parentMessage : msg
-              )
-            );
+            flushSync(() => {
+              setMessages((prevMessages) =>
+                prevMessages.map((msg) =>
+                  msg.id === parentMessageId ? parentMessage : msg
+                )
+              );
+            });
           } else if (validated.data.type === EventType.TEXT_MESSAGE_CONTENT) {
-            // Remove the placeholder message if it exists in messages
-            setMessages((prevMessages) =>
-              prevMessages.filter(
-                (msg) => msg.id !== "placeholder" && msg.content !== undefined
-              )
-            );
-
             // If the event is a message content, append it to the existing message
             const messageId = validated.data.messageId;
             const content = validated.data.delta;
@@ -317,13 +322,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               });
             }
           } else if (validated.data.type === EventType.TOOL_CALL_ARGS) {
-            // Remove the placeholder message if it exists in messages
-            setMessages((prevMessages) =>
-              prevMessages.filter(
-                (msg) => msg.id !== "placeholder" && msg.content !== undefined
-              )
-            );
-
             const toolCallArgs = validated.data as ToolCallArgsEvent;
             const message = getMessageFromToolCallId(toolCallArgs.toolCallId);
             const toolCall = getToolCall(toolCallArgs.toolCallId);
@@ -367,13 +365,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               });
             }
           } else if (validated.data.type === EventType.TOOL_CALL_END) {
-            // Remove the placeholder message if it exists in messages
-            setMessages((prevMessages) =>
-              prevMessages.filter(
-                (msg) => msg.id !== "placeholder" && msg.content !== undefined
-              )
-            );
-
             // run the tool call and add the response to the messages
             const toolCallEnd = validated.data as ToolCallEndEvent;
             const toolCall = getToolCall(toolCallEnd.toolCallId);
@@ -406,13 +397,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               )
             );
           } else if (validated.data.type === EventType.RUN_ERROR) {
-            // Remove the placeholder message if it exists in messages
-            setMessages((prevMessages) =>
-              prevMessages.filter(
-                (msg) => msg.id !== "placeholder" && msg.content !== undefined
-              )
-            );
-
             // If the event is a run error, log the error and close the event source
             console.error("Run error:", validated.data.message);
             eventSource.close();
