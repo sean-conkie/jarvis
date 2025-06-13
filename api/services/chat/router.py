@@ -11,6 +11,9 @@ from ag_ui.core import (
     TextMessageContentEvent,
     TextMessageEndEvent,
     TextMessageStartEvent,
+    ToolCallArgsEvent,
+    ToolCallEndEvent,
+    ToolCallStartEvent,
 )
 from ag_ui.encoder import EventEncoder
 from fastapi import APIRouter, HTTPException
@@ -18,6 +21,7 @@ from fastapi.responses import StreamingResponse
 from openai import AzureOpenAI
 
 from api.src.messages.create import create_message
+from api.src.openai.tools import create_tool
 from api.src.prompts import JARVIS_SYSTEM_PROMPT
 from credentials import AzureCredentials
 
@@ -53,15 +57,6 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
     # Generate a message ID for the assistant's response
     message_id = uuid.uuid4().hex
 
-    # Send text message start event
-    yield encoder.encode(
-        TextMessageStartEvent(
-            type=EventType.TEXT_MESSAGE_START,
-            message_id=message_id,
-            role="assistant",
-        )
-    )
-
     # Create a streaming completion request
 
     messages = [
@@ -75,24 +70,72 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
         ]
     )
 
+    tools = [
+        create_tool(
+            name=tool.name, description=tool.description, parameters=tool.parameters
+        )
+        for tool in message.tools or []
+    ]
+
     stream = client.chat.completions.create(
         model="gpt-4o_2024-08-06",
         messages=messages,
         stream=False,
+        tools=tools,
     )
 
-    yield encoder.encode(
-        TextMessageContentEvent(
-            type=EventType.TEXT_MESSAGE_CONTENT,
-            message_id=message_id,
-            delta=stream.choices[0].message.content or "",
+    if stream.choices[0].message.content:
+        # If the assistant's response is not empty, send the content event
+
+        # Send text message start event
+        yield encoder.encode(
+            TextMessageStartEvent(
+                type=EventType.TEXT_MESSAGE_START,
+                message_id=message_id,
+                role="assistant",
+            )
         )
-    )
+        yield encoder.encode(
+            TextMessageContentEvent(
+                type=EventType.TEXT_MESSAGE_CONTENT,
+                message_id=message_id,
+                delta=stream.choices[0].message.content or "",
+            )
+        )
 
-    # Send text message end event
-    yield encoder.encode(
-        TextMessageEndEvent(type=EventType.TEXT_MESSAGE_END, message_id=message_id)
-    )
+        # Send text message end event
+        yield encoder.encode(
+            TextMessageEndEvent(type=EventType.TEXT_MESSAGE_END, message_id=message_id)
+        )
+
+    if stream.choices[0].message.tool_calls:
+        # If the assistant's response includes tool calls, send them as events
+        for tool_call in stream.choices[0].message.tool_calls:
+
+            # Send tool message start event
+            yield encoder.encode(
+                ToolCallStartEvent(
+                    type=EventType.TOOL_CALL_START,
+                    parent_message_id=message_id,
+                    tool_call_id=tool_call.id,
+                    tool_call_name=tool_call.function.name,
+                )
+            )
+
+            yield encoder.encode(
+                ToolCallArgsEvent(
+                    type=EventType.TOOL_CALL_ARGS,
+                    tool_call_id=tool_call.id,
+                    delta=tool_call.function.arguments or "",
+                )
+            )
+
+            # Send text message end event
+            yield encoder.encode(
+                ToolCallEndEvent(
+                    type=EventType.TOOL_CALL_END, tool_call_id=tool_call.id
+                )
+            )
 
     # Send run finished event
     yield encoder.encode(
