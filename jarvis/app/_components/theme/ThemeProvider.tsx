@@ -41,6 +41,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     async invoke({ theme }: ThemeArgs): Promise<ThemeResult> {
+      // sleep for 1 second to simulate a delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       setTheme(theme);
       return {"theme": theme} as ThemeResult;
     }

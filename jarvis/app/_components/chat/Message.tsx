@@ -1,11 +1,19 @@
-import { Bot, User } from "lucide-react";
+import { Bot, Check, User, Wrench } from "lucide-react";
 import { PropsWithChildren } from "react";
 import SafeImage from "../SafeImage";
 import Spinner from "../Spinner";
+import Badge from "../Badge";
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  state: "pending" | "completed" | "failed";
+}
 
 type BaseProps = {
-  content?: string;
   avatarUrl?: string;
+  content?: string;
+  toolCalls?: ToolCall[];
 };
 
 type Role = "user" | "assistant" | "system" | "developer" | "tool";
@@ -18,11 +26,12 @@ const Message: React.FC<MessageProps> = ({
   avatarUrl,
   content,
   role,
+  toolCalls,
 }: MessageProps) => {
   return role === "user" ? (
     <UserMessage content={content} avatarUrl={avatarUrl} />
   ) : role === "assistant" ? (
-    <AssistantMessage content={content} />
+    <AssistantMessage content={content} toolCalls={toolCalls} />
   ) : null;
 };
 
@@ -32,7 +41,12 @@ const UserMessage = ({ avatarUrl, content }: BaseProps) => {
       <div className="chat-image avatar">
         <div className="w-10 rounded-full">
           {avatarUrl ? (
-            <SafeImage src={avatarUrl} alt="User avatar" width={20} height={20} />
+            <SafeImage
+              src={avatarUrl}
+              alt="User avatar"
+              width={20}
+              height={20}
+            />
           ) : (
             <IconWrapper>
               <User />
@@ -45,7 +59,7 @@ const UserMessage = ({ avatarUrl, content }: BaseProps) => {
   );
 };
 
-const AssistantMessage = ({ content }: BaseProps) => {
+const AssistantMessage = ({ content, toolCalls }: BaseProps) => {
   return (
     <div className="chat chat-start">
       <div className="w-10 rounded-full border-2 border-primary h-10">
@@ -53,7 +67,37 @@ const AssistantMessage = ({ content }: BaseProps) => {
           <Bot />
         </IconWrapper>
       </div>
-      {content ? content : <Spinner className="text-primary" />}
+      <div>
+        {content ? (
+          content
+        ) : toolCalls ? null : (
+          <Spinner className="text-primary" />
+        )}
+        {toolCalls && toolCalls.length > 0 && (
+          <>
+            {toolCalls.every((toolCall) => toolCall.state !== "pending") ? (
+              <div className="text-xs font-semibold">Tool calls completed.</div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-semibold">Calling tools</div>
+                <Spinner className="text-primary" />
+              </div>
+            )}
+            <div className="flex flex-col gap-2 mt-2">
+              {toolCalls.map((toolCall) => (
+                <Badge key={toolCall.id} icon={Wrench} type="primary">
+                  {toolCall.name}
+                  {toolCall.state === "pending" ? (
+                    <Spinner spinner="dots" spinnerSize="xs" />
+                  ) : (
+                    <Check className="text-success" />
+                  )}
+                </Badge>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };

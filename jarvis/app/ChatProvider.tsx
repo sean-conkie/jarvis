@@ -24,6 +24,7 @@ import React, {
 import { v4 as uuidv4 } from "uuid";
 import z from "zod";
 import { useTheme } from "./_components/theme/ThemeProvider";
+import { flushSync } from "react-dom";
 
 interface ChatContextValue {
   threadId: string | null;
@@ -111,7 +112,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   );
 
   // callback to get tool call from message, using toolCallId
-  const getToolCallFromMessage = useCallback(
+  const getToolCall = useCallback(
     (toolCallId: string): ToolCall | undefined => {
       const message = getMessageFromToolCallId(toolCallId);
       if (!message) {
@@ -196,6 +197,13 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
           // if the event is message start, set the messageId
           if (validated.data.type === EventType.TEXT_MESSAGE_START) {
+            // Remove the placeholder message if it exists in messages
+            setMessages((prevMessages) =>
+              prevMessages.filter(
+                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              )
+            );
+
             // If the event is a message start, create a new message object
             const newEventMessage: Message = {
               id: validated.data.messageId || uuidv4(),
@@ -208,8 +216,17 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             messagesRef.current = [...messagesRef.current, newEventMessage];
 
             // Add the new message to the messages state
-            setMessages((prevMessages) => [...prevMessages, newEventMessage]);
+            flushSync(() => {
+              setMessages((prevMessages) => [...prevMessages, newEventMessage]);
+            });
           } else if (validated.data.type === EventType.TOOL_CALL_START) {
+            // Remove the placeholder message if it exists in messages
+            setMessages((prevMessages) =>
+              prevMessages.filter(
+                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              )
+            );
+
             // is there a parentMessageId?
             const parentMessageId = validated.data.parentMessageId || uuidv4();
             let parentMessage: Message | undefined = messagesRef.current.find(
@@ -220,7 +237,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               // create a new parent message if it doesn't exist
               const newParentMessage: Message = {
                 id: parentMessageId,
-                content: "",
+                content: undefined,
                 role: "assistant",
                 toolCalls: [],
               };
@@ -229,10 +246,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               messagesRef.current = [...messagesRef.current, newParentMessage];
 
               // Add the new parent message to the messages state
-              setMessages((prevMessages) => [
-                ...prevMessages,
-                newParentMessage,
-              ]);
+              flushSync(() => {
+                setMessages((prevMessages) => [
+                  ...prevMessages,
+                  newParentMessage,
+                ]);
+              });
               parentMessage = newParentMessage;
             }
 
@@ -273,25 +292,41 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               )
             );
           } else if (validated.data.type === EventType.TEXT_MESSAGE_CONTENT) {
+            // Remove the placeholder message if it exists in messages
+            setMessages((prevMessages) =>
+              prevMessages.filter(
+                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              )
+            );
+
             // If the event is a message content, append it to the existing message
             const messageId = validated.data.messageId;
             const content = validated.data.delta;
             if (messageId) {
-              setMessages((prevMessages) =>
-                prevMessages.map((msg) =>
-                  msg.id === messageId
-                    ? {
-                        ...msg,
-                        content: content,
-                      }
-                    : msg
-                )
-              );
+              flushSync(() => {
+                setMessages((prevMessages) =>
+                  prevMessages.map((msg) =>
+                    msg.id === messageId
+                      ? {
+                          ...msg,
+                          content: content,
+                        }
+                      : msg
+                  )
+                );
+              });
             }
           } else if (validated.data.type === EventType.TOOL_CALL_ARGS) {
+            // Remove the placeholder message if it exists in messages
+            setMessages((prevMessages) =>
+              prevMessages.filter(
+                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              )
+            );
+
             const toolCallArgs = validated.data as ToolCallArgsEvent;
             const message = getMessageFromToolCallId(toolCallArgs.toolCallId);
-            const toolCall = getToolCallFromMessage(toolCallArgs.toolCallId);
+            const toolCall = getToolCall(toolCallArgs.toolCallId);
 
             if (!message) {
               // If the message is not found, log an error and return
@@ -323,22 +358,31 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               );
 
               // Update the tool call in the message's toolCalls array
-              setMessages((prevMessages) =>
-                prevMessages.map((msg) =>
-                  msg.id === message.id ? message : msg
-                )
-              );
+              flushSync(() => {
+                setMessages((prevMessages) =>
+                  prevMessages.map((msg) =>
+                    msg.id === message.id ? message : msg
+                  )
+                );
+              });
             }
           } else if (validated.data.type === EventType.TOOL_CALL_END) {
+            // Remove the placeholder message if it exists in messages
+            setMessages((prevMessages) =>
+              prevMessages.filter(
+                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              )
+            );
+
             // run the tool call and add the response to the messages
             const toolCallEnd = validated.data as ToolCallEndEvent;
-            const toolCall = getToolCallFromMessage(toolCallEnd.toolCallId);
+            const toolCall = getToolCall(toolCallEnd.toolCallId);
 
             if (toolCall) {
               // Assuming the tool call response is in toolCallEnd.result
               const toolCallArgs =
                 JSON.parse(toolCall.function.arguments) || "";
-              const result = themeToolRef.current.invoke(toolCallArgs);
+              const result = await themeToolRef.current.invoke(toolCallArgs);
 
               const toolResultMessage: Message = {
                 id: uuidv4(),
@@ -346,18 +390,51 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 content: JSON.stringify(result) || "",
                 role: "tool",
               };
-              setMessages((prevMessages) => [
-                ...prevMessages,
-                toolResultMessage,
-              ]);
+
+              flushSync(() => {
+                setMessages((prevMessages) => [
+                  ...prevMessages,
+                  toolResultMessage,
+                ]);
+              });
             }
+          } else if (validated.data.type === EventType.TEXT_MESSAGE_END) {
+            // Remove the placeholder message if it exists in messages
+            setMessages((prevMessages) =>
+              prevMessages.filter(
+                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              )
+            );
           } else if (validated.data.type === EventType.RUN_ERROR) {
+            // Remove the placeholder message if it exists in messages
+            setMessages((prevMessages) =>
+              prevMessages.filter(
+                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              )
+            );
+
             // If the event is a run error, log the error and close the event source
             console.error("Run error:", validated.data.message);
             eventSource.close();
             return;
+          } else if (validated.data.type === EventType.RUN_STARTED) {
+            // Add a placeholer message for the run started event
+            const runStartedMessage: Message = {
+              id: "placeholder",
+              content: undefined,
+              role: "assistant",
+            };
+
+            // Add the run started message to the messagesRef
+            messagesRef.current = [...messagesRef.current, runStartedMessage];
+            // Add the run started message to the messages state
+            flushSync(() => {
+              setMessages((prevMessages) => [
+                ...prevMessages,
+                runStartedMessage,
+              ]);
+            });
           }
-          await Promise.resolve();
 
           if (validated.data.type === EventType.RUN_FINISHED) {
             // If the run is finished, close the event source
@@ -373,7 +450,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         console.error("Something went wrong with chat 😔");
       }
     },
-    [getMessageFromToolCallId, getToolCallFromMessage]
+    [getMessageFromToolCallId, getToolCall]
   );
 
   return (
