@@ -2,7 +2,15 @@
 
 import { backendAxiosInstance } from "@/utils/backendUtils";
 import { newStream } from "@/utils/streamUtils";
-import { EventSchemas, EventType, Message, RunAgentInput } from "@ag-ui/core";
+import {
+  EventSchemas,
+  EventType,
+  Message,
+  RunAgentInput,
+  ToolCall,
+  ToolCallArgsEvent,
+  ToolCallEndEvent,
+} from "@ag-ui/core";
 import React, {
   createContext,
   ReactNode,
@@ -14,6 +22,7 @@ import React, {
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import z from "zod";
+import { useTheme } from "./_components/theme/ThemeProvider";
 
 interface ChatContextValue {
   threadId: string | null;
@@ -38,6 +47,15 @@ interface ChatProviderProps {
 }
 
 export const ChatProvider = ({ children }: ChatProviderProps) => {
+  // manage the theme tool state
+  const { themeTool } = useTheme();
+  const themeToolRef = React.useRef(themeTool);
+
+  // Update the ref whenever the theme tool changes
+  useEffect(() => {
+    themeToolRef.current = themeTool;
+  }, [themeTool]);
+
   // State to hold the current thread ID
   const [threadId, setThreadId] = useState<string | null>(null);
 
@@ -75,6 +93,60 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     return { messageEvents };
   }, [messageEvents]);
 
+  // map toolCallId to messageId
+  const [toolCallIdToMessageId, setToolCallIdToMessageId] = useState<
+    Record<string, string>
+  >({});
+
+  // Callback to update the toolCallId to messageId map
+  const updateToolCallToMessageidMap = useCallback(() => {
+    const map: Record<string, string> = {};
+    messages.forEach((message) => {
+      if ("toolCalls" in message && message.toolCalls) {
+        message.toolCalls.forEach((toolCall) => {
+          map[toolCall.id] = message.id;
+        });
+      }
+    });
+    setToolCallIdToMessageId(map);
+  }, [messages]);
+
+  // ref to hold the toolCallId to messageId map
+  const toolCallIdToMessageIdRef = React.useRef(toolCallIdToMessageId);
+
+  // Update the ref whenever toolCallIdToMessageId changes
+  useEffect(() => {
+    toolCallIdToMessageIdRef.current = toolCallIdToMessageId;
+  }, [toolCallIdToMessageId]);
+
+  // callback to get message from toolCallId
+  const getMessageFromToolCallId = useCallback(
+    (toolCallId: string): Message | undefined => {
+      const messageId = toolCallIdToMessageIdRef.current[toolCallId];
+      if (!messageId) {
+        console.error(`Message ID not found for tool call ID: ${toolCallId}`);
+        return undefined;
+      }
+      return messagesRef.current.find((msg) => msg.id === messageId);
+    },
+    []
+  );
+
+  // callback to get tool call from message, using toolCallId
+  const getToolCallFromMessage = useCallback(
+    (toolCallId: string): ToolCall | undefined => {
+      const message = getMessageFromToolCallId(toolCallId);
+      if (!message || !("toolCalls" in message) || !message.toolCalls) {
+        console.error(
+          `No tool calls found for message with ID: ${message?.id}`
+        );
+        return undefined;
+      }
+      return message.toolCalls.find((tc) => tc.id === toolCallId);
+    },
+    [getMessageFromToolCallId]
+  );
+
   // Handle submitting a message
   const handleSubmitMessage = useCallback(
     async (message: string, threadId: string) => {
@@ -95,7 +167,13 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         runId: uuidv4(),
         state: {}, // Assuming state is an empty object for now
         messages: [...messagesRef.current, newMessage],
-        tools: [], // Assuming no tools are used for now
+        tools: [
+          {
+            name: themeToolRef.current.name,
+            description: themeToolRef.current.description,
+            parameters: themeToolRef.current.parameters,
+          },
+        ], // Assuming no tools are used for now
         context: [], // Assuming no context is provided for now
         forwardedProps: "", // Assuming no forwarded props for now
       };
@@ -137,9 +215,61 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               id: validated.data.messageId || uuidv4(),
               content: "",
               role: validated.data.role || "assistant",
+              toolCalls: [],
             };
             // Add the new message to the messages state
             setMessages((prevMessages) => [...prevMessages, newEventMessage]);
+          } else if (validated.data.type === EventType.TOOL_CALL_START) {
+            // is there a parentMessageId?
+            const parentMessageId = validated.data.parentMessageId || uuidv4();
+            let parentMessage: Message | undefined = messagesRef.current.find(
+              (msg) => msg.id === parentMessageId
+            );
+            if (!parentMessage) {
+              // create a new parent message if it doesn't exist
+              const newParentMessage: Message = {
+                id: parentMessageId,
+                content: "",
+                role: "assistant",
+                toolCalls: [],
+              };
+              setMessages((prevMessages) => [
+                ...prevMessages,
+                newParentMessage,
+              ]);
+              parentMessage = newParentMessage;
+            }
+
+            if (!("toolCalls" in parentMessage)) {
+              parentMessage = {
+                ...parentMessage,
+                role: "assistant",
+                toolCalls: [] as ToolCall[],
+              };
+            }
+
+            // create the tool call
+            const toolCall: ToolCall = {
+              id: validated.data.toolCallId || uuidv4(),
+              type: "function",
+              function: {
+                name: validated.data.toolCallName,
+                arguments: "",
+              },
+            };
+
+            // Add the tool call to the parent message's toolCalls array
+            parentMessage.toolCalls!.push(toolCall);
+
+            // Update the messages state with the new parent message
+            setMessages((prevMessages) =>
+              prevMessages.map((msg) =>
+                msg.id === parentMessageId ? parentMessage : msg
+              )
+            );
+
+            // Update the toolCallId to messageId map
+            updateToolCallToMessageidMap();
           } else if (validated.data.type === EventType.TEXT_MESSAGE_CONTENT) {
             // If the event is a message content, append it to the existing message
             const messageId = validated.data.messageId;
@@ -155,6 +285,41 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                     : msg
                 )
               );
+            }
+          } else if (validated.data.type === EventType.TOOL_CALL_ARGS) {
+            const toolCallArgs = validated.data as ToolCallArgsEvent;
+            const message = getMessageFromToolCallId(toolCallArgs.toolCallId);
+            const toolCall = getToolCallFromMessage(toolCallArgs.toolCallId);
+
+            if (toolCall && message) {
+              toolCall.function.arguments = toolCallArgs.delta;
+              setMessages((prevMessages) =>
+                prevMessages.map((msg) =>
+                  msg.id === message.id ? { ...msg } : msg
+                )
+              );
+            }
+          } else if (validated.data.type === EventType.TOOL_CALL_END) {
+            // run the tool call and add the response to the messages
+            const toolCallEnd = validated.data as ToolCallEndEvent;
+            const toolCall = getToolCallFromMessage(toolCallEnd.toolCallId);
+
+            if (toolCall) {
+              // Assuming the tool call response is in toolCallEnd.result
+              const toolCallArgs =
+                JSON.parse(toolCall.function.arguments) || "";
+              const result = themeToolRef.current.invoke(toolCallArgs);
+
+              const toolResultMessage: Message = {
+                id: uuidv4(),
+                toolCallId: toolCall.id,
+                content: JSON.stringify(result) || "",
+                role: "tool",
+              };
+              setMessages((prevMessages) => [
+                ...prevMessages,
+                toolResultMessage,
+              ]);
             }
           } else if (validated.data.type === EventType.RUN_ERROR) {
             // If the event is a run error, log the error and close the event source
@@ -179,7 +344,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         console.error("Something went wrong with chat 😔");
       }
     },
-    []
+    [
+      getMessageFromToolCallId,
+      getToolCallFromMessage,
+      updateToolCallToMessageidMap,
+    ]
   );
 
   return (

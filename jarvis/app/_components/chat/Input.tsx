@@ -41,7 +41,7 @@ export const Input: React.FC<InputProps> = ({
   };
 
   return (
-    <div className="flex items-center p-4 w-full rounded-md bg-white gap-2">
+    <div className="flex items-center p-4 w-full rounded-md bg-base-100 gap-2">
       <input
         type="text"
         placeholder="Type your message..."
