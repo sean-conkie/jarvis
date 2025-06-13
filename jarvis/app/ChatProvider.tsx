@@ -193,7 +193,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
           }
 
           setMessageEvents((prevEvents) => [...prevEvents, validated.data]);
-          console.log("Received event:", validated.data.type);
 
           // if the event is message start, set the messageId
           if (validated.data.type === EventType.TEXT_MESSAGE_START) {
@@ -358,13 +357,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             eventSource.close();
             return;
           }
+          await Promise.resolve();
 
           if (validated.data.type === EventType.RUN_FINISHED) {
             // If the run is finished, close the event source
             eventSource.close();
           }
-
-          console.log("Finished processing event:", validated.data.type);
         };
 
         eventSource.onerror = (err) => {
