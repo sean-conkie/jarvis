@@ -1,7 +1,7 @@
 [project]
-name = "agui"
+name = "jarvis"
 version = "0.1.0"
-description = "Add your description here"
+description = "Experiments with agentic protocols."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,7 +21,7 @@ dev = [
 
 [[project.authors]]
 name = "Sean Conkie"
-email = "sean.conkie@sky.uk"
+email = "seanpconkie@yahoo.com"
 
 [tool.ruff]
 extend-exclude = [ "tests", "alembic" ]

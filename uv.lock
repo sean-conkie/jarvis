@@ -15,39 +15,6 @@ wheels = [
 ]
 
 [[package]]
-name = "agui"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "ag-ui-protocol" },
-    { name = "azure-identity" },
-    { name = "fastapi" },
-    { name = "openai" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "uvicorn" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ag-ui-protocol", specifier = ">=0.1.5" },
-    { name = "azure-identity", specifier = ">=1.23.0" },
-    { name = "fastapi", specifier = ">=0.115.12" },
-    { name = "openai", specifier = ">=1.84.0" },
-    { name = "pydantic", specifier = ">=2.11.5" },
-    { name = "pydantic-settings", specifier = ">=2.9.1" },
-    { name = "uvicorn", specifier = ">=0.34.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = ">=0.11.13" }]
-
-[[package]]
 name = "annotated-types"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -301,6 +268,39 @@ sdist = { url = "https://files.pythonhosted.org/packages/f1/70/7703c29685631f5a7
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/c6/c88e154df9c4e1a2a66ccf0005a88dfb2650c1dffb6f5ce603dfbd452ce3/idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3", size = 70442, upload-time = "2024-09-15T18:07:37.964Z" },
 ]
+
+[[package]]
+name = "jarvis"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "ag-ui-protocol" },
+    { name = "azure-identity" },
+    { name = "fastapi" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ag-ui-protocol", specifier = ">=0.1.5" },
+    { name = "azure-identity", specifier = ">=1.23.0" },
+    { name = "fastapi", specifier = ">=0.115.12" },
+    { name = "openai", specifier = ">=1.84.0" },
+    { name = "pydantic", specifier = ">=2.11.5" },
+    { name = "pydantic-settings", specifier = ">=2.9.1" },
+    { name = "uvicorn", specifier = ">=0.34.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ruff", specifier = ">=0.11.13" }]
 
 [[package]]
 name = "jiter"

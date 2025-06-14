@@ -20,10 +20,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from openai import AzureOpenAI
 
+from api.src.azure.credentials import AzureCredentials
 from api.src.messages.create import create_message
 from api.src.openai.tools import create_tool
 from api.src.prompts import JARVIS_SYSTEM_PROMPT
-from credentials import AzureCredentials
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
