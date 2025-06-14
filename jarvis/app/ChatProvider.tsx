@@ -200,13 +200,13 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             // Remove the placeholder message if it exists in messages
             setMessages((prevMessages) =>
               prevMessages.filter(
-                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+                (msg) => msg.id !== "placeholder"
               )
             );
 
             // remove the placeholder message from the messagesRef
             messagesRef.current = messagesRef.current.filter(
-              (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              (msg) => msg.id !== "placeholder"
             );
 
             // If the event is a message start, create a new message object
@@ -228,13 +228,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             // Remove the placeholder message if it exists in messages
             setMessages((prevMessages) =>
               prevMessages.filter(
-                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+                (msg) => msg.id !== "placeholder"
               )
             );
-
             // remove the placeholder message from the messagesRef
             messagesRef.current = messagesRef.current.filter(
-              (msg) => msg.id !== "placeholder" && msg.content !== undefined
+              (msg) => msg.id !== "placeholder"
             );
 
             // is there a parentMessageId?
@@ -393,7 +392,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             // Remove the placeholder message if it exists in messages
             setMessages((prevMessages) =>
               prevMessages.filter(
-                (msg) => msg.id !== "placeholder" && msg.content !== undefined
+                (msg) => msg.id !== "placeholder"
               )
             );
           } else if (validated.data.type === EventType.RUN_ERROR) {
