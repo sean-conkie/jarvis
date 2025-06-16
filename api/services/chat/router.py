@@ -18,10 +18,11 @@ from ag_ui.core import (
 from ag_ui.encoder import EventEncoder
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from openai import AzureOpenAI
+from openai import AsyncAzureOpenAI
 
 from api.src.azure.credentials import AzureCredentials
 from api.src.messages.create import create_message
+from api.src.openai.client import get_client
 from api.src.openai.tools import create_tool
 from api.src.prompts import JARVIS_SYSTEM_PROMPT
 
@@ -48,10 +49,9 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
 
     # Initialize OpenAI client
     credentials = AzureCredentials()
-    client = AzureOpenAI(
-        api_key=credentials.api_key.get_secret_value(),
-        azure_endpoint=credentials.openai_api_base,
-        api_version=credentials.openai_api_version,
+    client = get_client(
+        AsyncAzureOpenAI,
+        options=credentials,
     )
 
     # Generate a message ID for the assistant's response
@@ -77,7 +77,7 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
         for tool in message.tools or []
     ]
 
-    stream = client.chat.completions.create(
+    stream = await client.chat.completions.create(
         model="gpt-4o_2024-08-06",
         messages=messages,
         stream=False,
