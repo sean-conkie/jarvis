@@ -78,6 +78,22 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
     ]
     model: Annotated[str, Field(description="The model name to use for the agent")]
 
+    @property
+    def card(self) -> AgentCard:
+        """Create and returns an `AgentCard` instance by validating the current object's data.
+
+        Returns:
+            AgentCard: A validated `AgentCard` object constructed from the filtered data of the current instance.
+
+        """
+        return AgentCard.model_validate(
+            self.model_dump(
+                exclude_none=True,
+                exclude_unset=True,
+                exclude={"id", "model", "instructions"},
+            )
+        )
+
     async def invoke(self, context: RequestContext) -> Message:
         """Invoke the agent with the given request context.
 
