@@ -34,7 +34,7 @@ class A2AOptions(ConfiguredBaseModel):
 
 
 class AgentRegistry:
-    """Registry for managing agents."""
+    """Singleton registry for managing agents."""
 
     _instance: "AgentRegistry" = None
 
@@ -53,7 +53,8 @@ class AgentRegistry:
         """Register a new agent in the registry.
 
         Args:
-            agent (BaseAgent): The agent instance to register. The agent must have a unique 'id' attribute.
+            agent (BaseAgent): The agent instance to register. The agent must have a unique 'id'
+                attribute.
 
         Raises:
             KeyError: If an agent with the same name is already registered.

@@ -1,70 +1,29 @@
 """Base classes for agents and MCP sessions."""
 
-from typing import Annotated, Any, Dict, Optional
+import asyncio
+from copy import deepcopy
+from typing import Annotated, List, Optional
 
-import httpx
 from a2a.server.agent_execution import AgentExecutor
 from a2a.server.agent_execution.context import RequestContext
 from a2a.server.events.event_queue import EventQueue
 from a2a.types import AgentCard, Message
-from pydantic import Field, HttpUrl
+from openai import NOT_GIVEN, AsyncAzureOpenAI, NotGiven
+from openai.types.chat.chat_completion import ChatCompletion
+from openai.types.chat.chat_completion_message_tool_call import (
+    ChatCompletionMessageToolCall,
+)
+from pydantic import Field
 
+from api.src.azure.credentials import AzureCredentials
+from api.src.messages.create import (
+    ChatCompletionMessageParam,
+    ChatCompletionToolMessageParam,
+)
+from api.src.openai.client import get_client
+from api.src.openai.tools import ChatCompletionToolParam
 from api.src.pydantic import ConfiguredBaseModel
-
-# region MCP Session
-
-
-class BaseHttpMcpSession(ConfiguredBaseModel):
-    """Base class for HTTP MCP sessions."""
-
-    url: Annotated[HttpUrl, Field(description="The URL of the MCP server")]
-    session_id: Annotated[
-        Optional[str], Field(default=None, description="Session ID for the MCP server")
-    ]
-
-    async def initialize(self) -> None:
-        """Initialize the MCP session by sending an initialize request."""
-        payload = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
-
-        async with httpx.AsyncClient() as client:
-            resp = client.post(self.url, json=payload)
-            resp.raise_for_status()
-
-        self.session_id = resp.headers["Mcp-Session-Id"]
-
-    async def call_tool(self, name: str, tool_args: Dict[str, Any]) -> Any:
-        """Call a remote tool via JSON-RPC.
-
-        Args:
-            name (str): The name of the tool to call.
-            tool_args (Dict[str, Any]): The input parameters to pass to the tool.
-
-        Returns:
-            Any: The result returned by the remote tool.
-
-        Raises:
-            RuntimeError: If the session is not initialized.
-            httpx.HTTPStatusError: If the HTTP request fails.
-
-        """
-        if not self.session_id:
-            raise RuntimeError("Session not initialized")
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "call_tool",
-            "params": {"name": name, "input": tool_args},
-        }
-
-        async with httpx.AsyncClient() as client:
-            resp = client.post(self.url, json=payload)
-            resp.raise_for_status()
-
-        result = resp.json().get("result")
-        return result
-
-
-# endregion MCP Session
+from api.src.tools.registry import ToolRegistry
 
 # region Base Agent
 
@@ -77,6 +36,10 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
         str, Field(description="Instructions for the agent to follow")
     ]
     model: Annotated[str, Field(description="The model name to use for the agent")]
+    tool_registry: Annotated[
+        Optional[ToolRegistry],
+        Field(description="Registry of tools available to the agent"),
+    ]
 
     @property
     def card(self) -> AgentCard:
@@ -90,9 +53,105 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
             self.model_dump(
                 exclude_none=True,
                 exclude_unset=True,
-                exclude={"id", "model", "instructions"},
+                exclude={"id", "model", "instructions", "tools"},
             )
         )
+
+    async def _get_llm_response(
+        self,
+        messages: List[ChatCompletionMessageParam],
+        model: str,
+        temperature: float = 0.0,
+        tools: list[ChatCompletionToolParam] | NotGiven = NOT_GIVEN,
+        tool_choice: Optional[str] = None,
+    ) -> ChatCompletion:
+        if tool_choice is None:
+            tool_choice = "auto"
+
+        # Initialize OpenAI client
+        credentials = AzureCredentials()
+        client = get_client(
+            AsyncAzureOpenAI,
+            options=credentials,
+        )
+
+        return await client.chat.completions.create(
+            messages=messages,
+            model=model,
+            temperature=temperature,
+            tools=tools,
+            tool_choice=tool_choice,
+        )
+
+    async def _process_tool_call(
+        self, tool_call: ChatCompletionMessageToolCall
+    ) -> ChatCompletionToolMessageParam:
+
+        if self.tool_registry is None:
+            return ChatCompletionToolMessageParam(
+                tool_call_id=tool_call.id,
+                role="tool",
+                content="No tools are available for this agent.",
+            )
+
+        tool = self.tool_registry[tool_call.function.name]
+
+        tool_response, _ = await tool.run(options={"tool_call": tool_call})
+
+        if tool_response:
+            return tool_response
+        return ChatCompletionToolMessageParam(
+            tool_call_id=tool_call.id,
+            role="tool",
+            content="The tool call was not successful.",
+        )
+
+    async def _process_message(
+        self,
+        messages: List[ChatCompletionMessageParam],
+        model: str,
+        temperature: float = 0.0,
+        tools: list[ChatCompletionToolParam] | NotGiven = NOT_GIVEN,
+        tool_choice: Optional[str] = None,
+    ) -> Message:
+
+        response = await self._get_llm_response(
+            messages,
+            model,
+            tools=tools,
+            tool_choice=tool_choice,
+            temperature=temperature,
+        )
+
+        tool_calls = response.choices[0].message.tool_calls
+
+        while tool_calls:
+
+            # process the response
+            assert isinstance(tool_calls, list), "tool_calls is not a list"
+            tool_responses = await asyncio.gather(
+                *[
+                    self._process_tool_call(tool_call)
+                    for tool_call in response.toolCalls
+                ]
+            )
+
+            loop_messages = deepcopy(messages)
+            loop_messages.append(response.choices[0].message)
+            loop_messages.extend(tool_responses)
+
+            # return the tool responses to the model, if we get more tool calls these
+            # will be processed in the next loop
+            # if we get a response it will be saved after the loop
+            response = await self._get_llm_response(
+                loop_messages,
+                model,
+                tools=tools,
+                tool_choice=tool_choice,
+                temperature=temperature,
+            )
+
+        return response
 
     async def invoke(self, context: RequestContext) -> Message:
         """Invoke the agent with the given request context.
@@ -144,18 +203,6 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
         raise NotImplementedError(
             "The cancel method must be implemented by subclasses of BaseAgent."
         )
-
-
-class McpMixin(ConfiguredBaseModel):
-    """Mixin for agents that use an MCP session for tool calls."""
-
-    session: Annotated[
-        BaseHttpMcpSession,
-        Field(description="The MCP session to use for tool calls"),
-    ]
-    allowed_tools: Annotated[
-        set[str], Field(description="Set of allowed tool names for this agent")
-    ]
 
 
 # endregion Base Agent
