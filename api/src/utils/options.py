@@ -4,7 +4,7 @@ import inspect
 from functools import wraps
 from typing import Callable, ParamSpec, Type, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # Define a generic type variable bound to BaseOptions.
 T = TypeVar("T", bound="BaseModel")
@@ -45,3 +45,9 @@ def validate_options(expected: Type[T]) -> Callable[[Callable[P, R]], Callable[P
         return wrapper
 
     return decorator
+
+
+class BaseOptions(BaseModel):
+    """Base options for the example."""
+
+    model_config = ConfigDict(extra="allow")
