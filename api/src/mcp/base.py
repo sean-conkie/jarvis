@@ -1,11 +1,12 @@
 """Base classes for agents and MCP sessions."""
 
+import json
 from typing import Annotated, Any, Dict, List, Optional, Union, overload
 
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
-from mcp.types import ListToolsResult
-from pydantic import Field, HttpUrl
+from mcp.types import CallToolResult, ListToolsResult
+from pydantic import BaseModel, Field, HttpUrl
 
 from api.src.messages.create import ChatCompletionToolMessageParam
 from api.src.pydantic import ConfiguredBaseModel
@@ -28,7 +29,9 @@ class BaseHttpMcpSession(ConfiguredBaseModel):
             description="Parameters for stdio communication with the MCP server",
         ),
     ]
-    url: Annotated[HttpUrl, Field(description="The URL of the MCP server")]
+    url: Annotated[
+        Optional[HttpUrl], Field(default=None, description="The URL of the MCP server")
+    ]
     use_stdio: Annotated[
         bool,
         Field(
@@ -37,18 +40,8 @@ class BaseHttpMcpSession(ConfiguredBaseModel):
         ),
     ]
 
-    @overload
-    async def call_tool(
-        self, options: BaseToolOptions
-    ) -> ChatCompletionToolMessageParam: ...
-
-    @overload
-    async def call_tool(
-        self, options: dict[str, Any]
-    ) -> ChatCompletionToolMessageParam: ...
-
     @validate_options(BaseToolOptions)
-    async def call_tool(self, name: str, tool_args: Dict[str, Any]) -> Any:
+    async def call_tool(self, name: str, tool_args: Dict[str, Any]) -> CallToolResult:
         """Call a tool by its name with the provided arguments.
 
         Depending on the configuration, this method will either use standard I/O or HTTP to
@@ -59,7 +52,8 @@ class BaseHttpMcpSession(ConfiguredBaseModel):
             tool_args (Dict[str, Any]): A dictionary of arguments to pass to the tool.
 
         Returns:
-            Any: The result returned by the tool.
+            CallToolResult: The result of the tool call, which may include the tool's output or an
+                error.
 
         Raises:
             Exception: If the tool call fails or encounters an error.
@@ -68,6 +62,8 @@ class BaseHttpMcpSession(ConfiguredBaseModel):
         if self.use_stdio:
             return await self._call_tool_stdio(name, tool_args)
         else:
+            if not self.url:
+                raise ValueError("URL must be set for HTTP tool calls.")
             return await self._call_tool_http(name, tool_args)
 
     async def _call_tool_stdio(self, name: str, tool_args: Dict[str, Any]) -> Any:
@@ -92,7 +88,7 @@ class BaseHttpMcpSession(ConfiguredBaseModel):
             "HTTP tool calls are not implemented in BaseHttpMcpSession."
         )
 
-    async def get_tools(self) -> List[ListToolsResult]:
+    async def list_tools(self) -> List[ListToolsResult]:
         """Retrieve a list of available tools.
 
         Returns:
@@ -104,11 +100,13 @@ class BaseHttpMcpSession(ConfiguredBaseModel):
 
         """
         if self.use_stdio:
-            return await self._get_tools_stdio() or []
+            return await self._list_tools_stdio() or []
         else:
-            return await self._get_tools_http() or []
+            if not self.url:
+                raise ValueError("URL must be set for HTTP tool calls.")
+            return await self._list_tools_http() or []
 
-    async def _get_tools_stdio(self):
+    async def _list_tools_stdio(self):
 
         assert (
             self.stdio_parameters
@@ -122,7 +120,8 @@ class BaseHttpMcpSession(ConfiguredBaseModel):
 
                 return await session.list_tools()
 
-    async def _get_tools_http(self):
+    async def _list_tools_http(self):
+        """Retrieve a list of tools using HTTP."""
         raise NotImplementedError(
             "HTTP tool retrieval is not implemented in BaseHttpMcpSession."
         )
@@ -145,6 +144,21 @@ class MCPTool(BaseTool):
         Field(description="The MCP session to use for tool calls"),
     ]
 
+    def __init__(
+        self,
+        session: BaseHttpMcpSession,
+        name: str,
+        description: str,
+        tool_call_schema: type[BaseModel],
+        strict: Optional[bool] = True,
+    ):
+        """Initialize the MCP tool with a session, name, and description."""
+        self.session = session
+        self.name = name
+        self.description = description
+        self.tool_call_schema = tool_call_schema
+        self.strict = strict
+
     @overload
     async def run(self, options: BaseToolOptions) -> ChatCompletionToolMessageParam: ...
 
@@ -161,8 +175,21 @@ class MCPTool(BaseTool):
         if result:
             return result
 
-        return await self.session.call_tool(
+        result = await self.session.call_tool(
             name=self.name, tool_args=self._tool_args.model_dump()
+        )
+
+        if result is None or result.isError:
+            return ChatCompletionToolMessageParam(
+                tool_call_id=result.id,
+                role="tool",
+                content="Tool call failed",
+            )
+
+        return ChatCompletionToolMessageParam(
+            tool_call_id=self._tool_call_id,
+            role="tool",
+            content=json.dumps([content.model_dump() for content in result.content]),  # type: ignore[union-attr]
         )
 
 
