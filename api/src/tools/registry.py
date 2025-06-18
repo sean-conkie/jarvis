@@ -47,35 +47,36 @@ class ToolRegistry:
         """
         return name in self._tools
 
-    def register_tool(self, tool: type[BaseTool]):
-        """Register a tool class in the internal tools registry.
+    def register_tool(self, tool: BaseTool):
+        """Register a tool in the registry.
 
         Args:
-            tool (type[BaseTool]): The tool class to register. Must be a subclass of BaseTool and
-                have a 'name' attribute.
+            tool (BaseTool): The tool instance to register. The tool must have a unique 'name'
+                attribute.
 
         Raises:
-            AttributeError: If the tool does not have a 'name' attribute.
+            KeyError: If a tool with the same name is already registered.
 
         """
         self._tools[tool.name] = tool
 
     async def register_mcp_server(
         self,
-        mcp_server: type[BaseHttpMcpSession],
+        mcp_server: BaseHttpMcpSession,
         allowed_tools: Optional[set[str]] = None,
     ):
-        """Register tools from a given MCP server.
+        """Register tools from a given MCP server session.
 
-        Iterates through the list of tools provided by the specified MCP server class,
-        and registers each tool that is either in the allowed_tools set or, if allowed_tools
-        is None, all available tools. Each tool is wrapped as an MCPTool instance with its
-        name, description, input schema, and session, and then registered.
+        Retrieves the list of tools available from the provided `mcp_server` session,
+        and registers each tool whose name is included in the `allowed_tools` set (if specified).
+        For each eligible tool, constructs an `MCPTool` instance with the appropriate
+        name, description, input schema, and session, then registers it.
 
         Args:
-            mcp_server (type[BaseHttpMcpSession]): The MCP server class to retrieve tools from.
-            allowed_tools (Optional[set[str]], optional): A set of tool names to allow for registration.
-                If None, all tools from the server will be registered. Defaults to None.
+            mcp_server (BaseHttpMcpSession): The MCP server session to retrieve tools from.
+            allowed_tools (Optional[set[str]], optional): A set of tool names to allow for
+                registration. If None, all tools from the server will be registered. Defaults to
+                None.
 
         """
         tools = await mcp_server.list_tools()
@@ -84,7 +85,7 @@ class ToolRegistry:
                 mcp_tool = MCPTool(
                     name=tool.name,
                     description=tool.description,
-                    tool_call_schema=model_from_schema(tool.name, tool.input_schema),
+                    tool_call_schema=model_from_schema(tool.name, tool.inputSchema),
                     session=mcp_server,
                 )
                 self.register_tool(mcp_tool)

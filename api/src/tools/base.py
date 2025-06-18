@@ -9,8 +9,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError
-from typing_extensions import Annotated
+from pydantic import BaseModel, PrivateAttr, ValidationError
 
 from api.src.messages.create import ChatCompletionToolMessageParam, create_message
 from api.src.openai.tools import create_tool
@@ -33,10 +32,8 @@ class BaseTool(Generic[T]):
     description: str
     tool_call_schema: Type[T]
 
-    strict: Annotated[
-        bool,
-        Field(default=True, description="Whether to enforce strict schema validation."),
-    ]
+    strict: bool = True
+    """Whether to enforce strict validation of tool arguments."""
 
     _tool_call_id: str | None = PrivateAttr(default=None)
     _tool_args: T | None = PrivateAttr(default=None)
