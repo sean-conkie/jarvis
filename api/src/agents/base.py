@@ -3,11 +3,12 @@
 import asyncio
 from copy import deepcopy
 from typing import Annotated, List, Optional
+from uuid import uuid4
 
 from a2a.server.agent_execution import AgentExecutor
 from a2a.server.agent_execution.context import RequestContext
 from a2a.server.events.event_queue import EventQueue
-from a2a.types import AgentCard, Message
+from a2a.types import AgentCard, Message, Part, Role, TextPart
 from openai import NOT_GIVEN, AsyncAzureOpenAI, NotGiven
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_message_tool_call import (
@@ -19,6 +20,7 @@ from api.src.azure.credentials import AzureCredentials
 from api.src.messages.create import (
     ChatCompletionMessageParam,
     ChatCompletionToolMessageParam,
+    create_message,
 )
 from api.src.openai.client import get_client
 from api.src.openai.tools import ChatCompletionToolParam
@@ -53,7 +55,7 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
             self.model_dump(
                 exclude_none=True,
                 exclude_unset=True,
-                exclude={"id", "model", "instructions", "tools"},
+                exclude={"id", "model", "instructions", "tool_registry"},
             )
         )
 
@@ -63,10 +65,8 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
         model: str,
         temperature: float = 0.0,
         tools: list[ChatCompletionToolParam] | NotGiven = NOT_GIVEN,
-        tool_choice: Optional[str] = None,
+        tool_choice: str | NotGiven = NOT_GIVEN,
     ) -> ChatCompletion:
-        if tool_choice is None:
-            tool_choice = "auto"
 
         # Initialize OpenAI client
         credentials = AzureCredentials()
@@ -96,7 +96,7 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
 
         tool = self.tool_registry[tool_call.function.name]
 
-        tool_response, _ = await tool.run(options={"tool_call": tool_call})
+        tool_response = await tool.run(options={"tool_call": tool_call})
 
         if tool_response:
             return tool_response
@@ -108,11 +108,12 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
 
     async def _process_message(
         self,
+        context_id: str,
         messages: List[ChatCompletionMessageParam],
         model: str,
         temperature: float = 0.0,
         tools: list[ChatCompletionToolParam] | NotGiven = NOT_GIVEN,
-        tool_choice: Optional[str] = None,
+        tool_choice: str | NotGiven = NOT_GIVEN,
     ) -> Message:
 
         response = await self._get_llm_response(
@@ -130,14 +131,13 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
             # process the response
             assert isinstance(tool_calls, list), "tool_calls is not a list"
             tool_responses = await asyncio.gather(
-                *[
-                    self._process_tool_call(tool_call)
-                    for tool_call in response.toolCalls
-                ]
+                *[self._process_tool_call(tool_call) for tool_call in tool_calls]
             )
 
             loop_messages = deepcopy(messages)
-            loop_messages.append(response.choices[0].message)
+            loop_messages.append(
+                create_message(**response.choices[0].message.model_dump())
+            )
             loop_messages.extend(tool_responses)
 
             # return the tool responses to the model, if we get more tool calls these
@@ -150,8 +150,18 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
                 tool_choice=tool_choice,
                 temperature=temperature,
             )
+            tool_calls = response.choices[0].message.tool_calls
 
-        return response
+        return Message(
+            contextId=context_id,
+            messageId=uuid4().hex,
+            role=Role.agent,
+            parts=[
+                Part(
+                    root=TextPart(text=response.choices[0].message.content, kind="text")
+                )
+            ],
+        )
 
     async def invoke(self, context: RequestContext) -> Message:
         """Invoke the agent with the given request context.
