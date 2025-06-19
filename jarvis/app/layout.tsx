@@ -5,6 +5,7 @@ import "./globals.css";
 import { BASE_METADATA } from "@/metadata";
 import { ThemeProvider } from "./_components/theme/ThemeProvider";
 import Theme from "./_components/theme/Theme";
+import NavBar from "./_components/nav/NavBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +31,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <Theme>
-            <ChatProvider>{children}</ChatProvider>
+            <ChatProvider><NavBar>{children}</NavBar></ChatProvider>
           </Theme>
         </ThemeProvider>
       </body>

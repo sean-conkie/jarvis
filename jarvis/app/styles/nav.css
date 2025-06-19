@@ -1,0 +1,25 @@
+
+/* nav bar styles */
+@layer components {
+
+  .nav-item {
+    @apply flex items-center justify-center text-center;
+  }
+
+  .nav-item {
+    padding-inline: var(--btn-p);
+    height: var(--size);
+  }
+
+  .nav-link {
+    @apply text-slate-500 transition-colors;
+  }
+
+  .nav-link:hover {
+    @apply text-slate-800;
+  }
+
+  .nav-link-active {
+    @apply text-primary font-semibold;
+  }
+}
