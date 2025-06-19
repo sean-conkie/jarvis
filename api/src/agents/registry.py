@@ -1,6 +1,6 @@
 """Agent Registry Module."""
 
-from typing import Any, Dict, Union, overload
+from typing import Any, Dict, List, Union, overload
 from uuid import uuid4
 
 from a2a.server.agent_execution.context import RequestContext
@@ -10,11 +10,18 @@ from pydantic import BeforeValidator, Field
 from typing_extensions import Annotated
 
 from api.src.agents.base import BaseAgent
+from api.src.openai.tools import ChatCompletionToolParam, create_tool
 from api.src.pydantic import ConfiguredBaseModel
 from api.src.utils.options import validate_options
 
 
-class A2AOptions(ConfiguredBaseModel):
+class AgentParameters(ConfiguredBaseModel):
+    """Base parameters for agents."""
+
+    text: Annotated[str, Field(description="Text to be process by the agent.")]
+
+
+class A2AOptions(AgentParameters):
     """Options for the A2A agent."""
 
     message_id: Annotated[
@@ -26,11 +33,16 @@ class A2AOptions(ConfiguredBaseModel):
     ]
     role: Annotated[
         Role,
-        Field(description="Role of the agent in the conversation."),
+        Field(description="Role of the agent in the conversation.", default=Role.agent),
         BeforeValidator(lambda v: Role(v) if isinstance(v, str) else v),
     ]
-    text: Annotated[str, Field(description="Text to be process by the agent.")]
-    thread_id: Annotated[str, Field(description="Thread ID for the agent's context.")]
+    thread_id: Annotated[
+        str,
+        Field(
+            description="Thread ID for the agent's context.",
+            default_factory=lambda: uuid4().hex,
+        ),
+    ]
 
 
 class AgentRegistry:
@@ -52,6 +64,18 @@ class AgentRegistry:
     def __iter__(self):
         """Return an iterator over the registered agents."""
         return iter(self._agents.values())
+
+    def __contains__(self, agent_id: str) -> bool:
+        """Check if an agent with the given id is registered.
+
+        Args:
+            agent_id (str): The id of the agent to check.
+
+        Returns:
+            bool: True if the agent is registered, False otherwise.
+
+        """
+        return agent_id in self._agents
 
     def register(self, agent: BaseAgent):
         """Register a new agent in the registry.
@@ -151,6 +175,25 @@ class AgentRegistry:
             event_queue=queue,
         )
         await queue.close()
+
+    @property
+    def agents_as_tools(self) -> List[ChatCompletionToolParam]:
+        """Return a dictionary of agents that can be used as tools.
+
+        Returns:
+            Dict[str, BaseAgent]: A dictionary where the keys are agent ids and the values are
+            the agent classes that can be used as tools.
+
+        """
+        return [
+            create_tool(
+                name=agent.id,
+                description=agent.description,
+                parameters=AgentParameters,
+                strict=True,
+            )
+            for agent in self._agents.values()
+        ]
 
 
 agent_registry = AgentRegistry()

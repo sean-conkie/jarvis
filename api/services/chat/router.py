@@ -1,8 +1,14 @@
 """Chat service router."""
 
+import asyncio
+import json
 import uuid
 from typing import AsyncGenerator, Dict
 
+from a2a.server.events.event_consumer import EventConsumer
+from a2a.server.events.event_queue import EventQueue
+from a2a.types import Role
+from a2a.utils.message import get_message_text
 from ag_ui.core import (
     EventType,
     RunAgentInput,
@@ -20,8 +26,9 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from openai import AsyncAzureOpenAI
 
+from api.src.agents.registry import agent_registry
 from api.src.azure.credentials import AzureCredentials
-from api.src.messages.create import create_message
+from api.src.messages.create import ChatCompletionToolMessageParam, create_message
 from api.src.openai.client import get_client
 from api.src.openai.tools import create_tool
 from api.src.prompts import JARVIS_SYSTEM_PROMPT
@@ -77,6 +84,8 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
         for tool in message.tools or []
     ]
 
+    tools.extend(agent_registry.agents_as_tools)
+
     stream = await client.chat.completions.create(
         model="gpt-4o_2024-08-06",
         messages=messages,
@@ -108,34 +117,103 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
             TextMessageEndEvent(type=EventType.TEXT_MESSAGE_END, message_id=message_id)
         )
 
-    if stream.choices[0].message.tool_calls:
-        # If the assistant's response includes tool calls, send them as events
-        for tool_call in stream.choices[0].message.tool_calls:
+    tool_calls = stream.choices[0].message.tool_calls
 
-            # Send tool message start event
-            yield encoder.encode(
-                ToolCallStartEvent(
-                    type=EventType.TOOL_CALL_START,
-                    parent_message_id=message_id,
-                    tool_call_id=tool_call.id,
-                    tool_call_name=tool_call.function.name,
-                )
-            )
+    if tool_calls:
 
-            yield encoder.encode(
-                ToolCallArgsEvent(
-                    type=EventType.TOOL_CALL_ARGS,
-                    tool_call_id=tool_call.id,
-                    delta=tool_call.function.arguments or "",
-                )
-            )
+        while tool_calls:
+            tool_responses = []
 
-            # Send text message end event
-            yield encoder.encode(
-                ToolCallEndEvent(
-                    type=EventType.TOOL_CALL_END, tool_call_id=tool_call.id
-                )
+            # If the assistant's response includes tool calls, send them as events
+            for tool_call in tool_calls:
+
+                if tool_call.function.name in agent_registry:
+
+                    options = json.loads(tool_call.function.arguments or "{}")
+                    options["thread_id"] = message.thread_id
+                    options["role"] = Role.agent
+
+                    # call the tool
+                    queue = EventQueue()
+                    task = asyncio.create_task(
+                        agent_registry.execute_agent(
+                            tool_call.function.name,
+                            queue=queue,
+                            options=options,
+                        )
+                    )
+
+                    consumer = EventConsumer(queue)
+                    task.add_done_callback(consumer.agent_task_callback)
+                    response = None
+                    async for event in consumer.consume_all():
+                        response = get_message_text(event)
+
+                    tool_response = ChatCompletionToolMessageParam(
+                        tool_call_id=tool_call.id,
+                        role="tool",
+                        content=response or "No response from tool.",
+                    )
+                    tool_responses.append(tool_response)
+
+                else:
+
+                    # Send tool message start event
+                    yield encoder.encode(
+                        ToolCallStartEvent(
+                            type=EventType.TOOL_CALL_START,
+                            parent_message_id=message_id,
+                            tool_call_id=tool_call.id,
+                            tool_call_name=tool_call.function.name,
+                        )
+                    )
+
+                    yield encoder.encode(
+                        ToolCallArgsEvent(
+                            type=EventType.TOOL_CALL_ARGS,
+                            tool_call_id=tool_call.id,
+                            delta=tool_call.function.arguments or "",
+                        )
+                    )
+
+                    # Send text message end event
+                    yield encoder.encode(
+                        ToolCallEndEvent(
+                            type=EventType.TOOL_CALL_END, tool_call_id=tool_call.id
+                        )
+                    )
+
+            messages.append(create_message(**stream.choices[0].message.model_dump()))
+            messages.extend(tool_responses)
+
+            stream = await client.chat.completions.create(
+                model="gpt-4o_2024-08-06",
+                messages=messages,
+                stream=False,
+                tools=tools,
             )
+            tool_calls = stream.choices[0].message.tool_calls
+
+        # Send text message start event
+        yield encoder.encode(
+            TextMessageStartEvent(
+                type=EventType.TEXT_MESSAGE_START,
+                message_id=message_id,
+                role="assistant",
+            )
+        )
+        yield encoder.encode(
+            TextMessageContentEvent(
+                type=EventType.TEXT_MESSAGE_CONTENT,
+                message_id=message_id,
+                delta=stream.choices[0].message.content or "",
+            )
+        )
+
+        # Send text message end event
+        yield encoder.encode(
+            TextMessageEndEvent(type=EventType.TEXT_MESSAGE_END, message_id=message_id)
+        )
 
     # Send run finished event
     yield encoder.encode(
