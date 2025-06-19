@@ -93,29 +93,29 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
         tools=tools,
     )
 
-    if stream.choices[0].message.content:
-        # If the assistant's response is not empty, send the content event
+    # if stream.choices[0].message.content:
+    #     # If the assistant's response is not empty, send the content event
 
-        # Send text message start event
-        yield encoder.encode(
-            TextMessageStartEvent(
-                type=EventType.TEXT_MESSAGE_START,
-                message_id=message_id,
-                role="assistant",
-            )
-        )
-        yield encoder.encode(
-            TextMessageContentEvent(
-                type=EventType.TEXT_MESSAGE_CONTENT,
-                message_id=message_id,
-                delta=stream.choices[0].message.content or "",
-            )
-        )
+    #     # Send text message start event
+    #     yield encoder.encode(
+    #         TextMessageStartEvent(
+    #             type=EventType.TEXT_MESSAGE_START,
+    #             message_id=message_id,
+    #             role="assistant",
+    #         )
+    #     )
+    #     yield encoder.encode(
+    #         TextMessageContentEvent(
+    #             type=EventType.TEXT_MESSAGE_CONTENT,
+    #             message_id=message_id,
+    #             delta=stream.choices[0].message.content or "",
+    #         )
+    #     )
 
-        # Send text message end event
-        yield encoder.encode(
-            TextMessageEndEvent(type=EventType.TEXT_MESSAGE_END, message_id=message_id)
-        )
+    #     # Send text message end event
+    #     yield encoder.encode(
+    #         TextMessageEndEvent(type=EventType.TEXT_MESSAGE_END, message_id=message_id)
+    #     )
 
     tool_calls = stream.choices[0].message.tool_calls
 
@@ -128,6 +128,23 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
             for tool_call in tool_calls:
 
                 if tool_call.function.name in agent_registry:
+                    # Send tool message start event
+                    yield encoder.encode(
+                        ToolCallStartEvent(
+                            type=EventType.TOOL_CALL_START,
+                            parent_message_id=message_id,
+                            tool_call_id=tool_call.id,
+                            tool_call_name="callAgent",
+                        )
+                    )
+
+                    yield encoder.encode(
+                        ToolCallArgsEvent(
+                            type=EventType.TOOL_CALL_ARGS,
+                            tool_call_id=tool_call.id,
+                            delta=tool_call.function.name or "",
+                        )
+                    )
 
                     options = json.loads(tool_call.function.arguments or "{}")
                     options["thread_id"] = message.thread_id
@@ -176,24 +193,30 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
                         )
                     )
 
-                    # Send text message end event
-                    yield encoder.encode(
-                        ToolCallEndEvent(
-                            type=EventType.TOOL_CALL_END, tool_call_id=tool_call.id
-                        )
+                # Send text message end event
+                yield encoder.encode(
+                    ToolCallEndEvent(
+                        type=EventType.TOOL_CALL_END, tool_call_id=tool_call.id
                     )
+                )
 
-            messages.append(create_message(**stream.choices[0].message.model_dump()))
-            messages.extend(tool_responses)
+            if tool_responses:
+                messages.append(
+                    create_message(**stream.choices[0].message.model_dump())
+                )
+                messages.extend(tool_responses)
 
-            stream = await client.chat.completions.create(
-                model="gpt-4o_2024-08-06",
-                messages=messages,
-                stream=False,
-                tools=tools,
-            )
-            tool_calls = stream.choices[0].message.tool_calls
+                stream = await client.chat.completions.create(
+                    model="gpt-4o_2024-08-06",
+                    messages=messages,
+                    stream=False,
+                    tools=tools,
+                )
+                tool_calls = stream.choices[0].message.tool_calls
+            else:
+                tool_calls = None
 
+    if stream.choices[0].message.content:
         # Send text message start event
         yield encoder.encode(
             TextMessageStartEvent(

@@ -23,7 +23,7 @@ import React, {
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import z from "zod";
-import { useTheme } from "./_components/theme/ThemeProvider";
+import { ThemeArgs, useTheme } from "./_components/theme/ThemeProvider";
 import { flushSync } from "react-dom";
 
 interface ChatContextValue {
@@ -199,9 +199,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
           if (validated.data.type === EventType.TEXT_MESSAGE_START) {
             // Remove the placeholder message if it exists in messages
             setMessages((prevMessages) =>
-              prevMessages.filter(
-                (msg) => msg.id !== "placeholder"
-              )
+              prevMessages.filter((msg) => msg.id !== "placeholder")
             );
 
             // remove the placeholder message from the messagesRef
@@ -227,9 +225,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
           } else if (validated.data.type === EventType.TOOL_CALL_START) {
             // Remove the placeholder message if it exists in messages
             setMessages((prevMessages) =>
-              prevMessages.filter(
-                (msg) => msg.id !== "placeholder"
-              )
+              prevMessages.filter((msg) => msg.id !== "placeholder")
             );
             // remove the placeholder message from the messagesRef
             messagesRef.current = messagesRef.current.filter(
@@ -370,14 +366,27 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
             if (toolCall) {
               // Assuming the tool call response is in toolCallEnd.result
-              const toolCallArgs =
-                JSON.parse(toolCall.function.arguments) || "";
-              const result = await themeToolRef.current.invoke(toolCallArgs);
+              let toolCallArgs: Record<string, unknown> | undefined = undefined;
+              try {
+                toolCallArgs = JSON.parse(toolCall.function.arguments);
+              } catch (error) {
+                console.error("Failed to parse tool call arguments:", error);
+                toolCallArgs = {}
+              }
+              
+              let result: string | undefined = undefined;
+              if (toolCall.function.name === "setTheme") {
+                if (toolCallArgs) {
+                  result = JSON.stringify(await themeToolRef.current.invoke(toolCallArgs as unknown as ThemeArgs));
+                } else {
+                  console.error("Tool call arguments are undefined or invalid.");
+                }
+              }
 
               const toolResultMessage: Message = {
                 id: uuidv4(),
                 toolCallId: toolCall.id,
-                content: JSON.stringify(result) || "",
+                content: result || "",
                 role: "tool",
               };
 
@@ -391,9 +400,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
           } else if (validated.data.type === EventType.TEXT_MESSAGE_END) {
             // Remove the placeholder message if it exists in messages
             setMessages((prevMessages) =>
-              prevMessages.filter(
-                (msg) => msg.id !== "placeholder"
-              )
+              prevMessages.filter((msg) => msg.id !== "placeholder")
             );
           } else if (validated.data.type === EventType.RUN_ERROR) {
             // If the event is a run error, log the error and close the event source

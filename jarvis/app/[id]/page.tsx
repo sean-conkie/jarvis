@@ -16,7 +16,7 @@ type SimpleMessage = {
 
 const ChatPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { handleSubmitMessage, messages } = useChat();
+  const { handleSubmitMessage, messages, messageEvents } = useChat();
 
   // state to handle updated message objects
   const [transformedMessages, setTransformedMessages] = useState<
@@ -41,6 +41,7 @@ const ChatPage = () => {
                   return {
                     id: tc.id,
                     name: tc.function.name,
+                    arguments: tc.function.arguments || undefined,
                     state: "pending",
                   };
                 })
@@ -72,8 +73,12 @@ const ChatPage = () => {
   }, [messages]);
 
   useEffect(() => {
-    console.log(messages);
+    console.log("Messages:",messages);
   }, [messages]);
+
+  useEffect(() => {
+    console.log("Events:",messageEvents);
+  }, [messageEvents]);
 
   return (
     <ChatContainer>

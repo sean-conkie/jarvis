@@ -1,4 +1,4 @@
-import { Bot, Check, User, Wrench } from "lucide-react";
+import { Bot, BotMessageSquare, Check, User, Wrench } from "lucide-react";
 import { PropsWithChildren } from "react";
 import SafeImage from "../SafeImage";
 import Spinner from "../Spinner";
@@ -10,6 +10,7 @@ export interface ToolCall {
   id: string;
   name: string;
   state: "pending" | "completed" | "failed";
+  arguments?: string;
 }
 
 type BaseProps = {
@@ -70,13 +71,6 @@ const AssistantMessage = ({ content, toolCalls }: BaseProps) => {
         </IconWrapper>
       </div>
       <div>
-        {content ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {content}
-          </ReactMarkdown>
-        ) : toolCalls ? null : (
-          <Spinner className="text-primary" />
-        )}
         {toolCalls && toolCalls.length > 0 && (
           <>
             {toolCalls.every((toolCall) => toolCall.state !== "pending") ? (
@@ -89,8 +83,9 @@ const AssistantMessage = ({ content, toolCalls }: BaseProps) => {
             )}
             <div className="flex flex-col gap-2 mt-2">
               {toolCalls.map((toolCall) => (
-                <Badge key={toolCall.id} icon={Wrench} type="primary">
+                <Badge key={toolCall.id} icon={toolCall.name === "callAgent" ? BotMessageSquare : Wrench} type="primary">
                   {toolCall.name}
+                  {toolCall.name === "callAgent" && <span>({toolCall.arguments || "Unknown"})</span>}
                   {toolCall.state === "pending" ? (
                     <Spinner spinner="dots" spinnerSize="xs" />
                   ) : (
@@ -100,6 +95,13 @@ const AssistantMessage = ({ content, toolCalls }: BaseProps) => {
               ))}
             </div>
           </>
+        )}
+        {content ? (
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
+        ) : toolCalls ? null : (
+          <Spinner className="text-primary" />
         )}
       </div>
     </div>
