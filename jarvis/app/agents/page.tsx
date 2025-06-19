@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Container from "../_components/layout/Container";
 import Content from "../_components/layout/Content";
 import Loading from "../_components/layout/Loading";
-import { MessageCircle } from "lucide-react";
+import { Logs, MessageCircle } from "lucide-react";
 
 const AgentsPage = () => {
   // manage state for agents
@@ -81,7 +81,16 @@ const AgentsPage = () => {
                         </details>
                       </td>
                       <td className="align-top">{agent.version}</td>
-                      <td className="align-top"><div className="flex flex-row gap-2 items-center"><button><MessageCircle /></button></div></td>
+                      <td className="align-top">
+                        <div className="flex flex-row gap-2 items-center">
+                          <button className="btn btn-ghost btn-xs">
+                            <MessageCircle />
+                          </button>
+                          <button className="btn btn-ghost btn-xs">
+                            <Logs />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
