@@ -66,7 +66,7 @@ async def create_github_agent(
         Any exceptions raised during tool registration or agent creation.
 
     """
-    agent_id = name.lower().replace(" ", "-") + "_agent"
+    agent_id = name.lower().replace(" ", "-")
 
     tool_registry = ToolRegistry()
 

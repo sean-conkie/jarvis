@@ -176,20 +176,25 @@ class MCPTool(BaseTool):
             return result
 
         result = await self.session.call_tool(
-            name=self.name, tool_args=self._tool_args.model_dump()
+            name=self.name,
+            tool_args=self._tool_args.model_dump(exclude_none=True, exclude_unset=True),
         )
 
         if result is None or result.isError:
             return ChatCompletionToolMessageParam(
-                tool_call_id=result.id,
+                tool_call_id=self._tool_call_id,
                 role="tool",
-                content="Tool call failed",
+                content=(
+                    "Tool call failed: " + result.content[0].text
+                    if result.content
+                    else "No content returned"
+                ),
             )
 
         return ChatCompletionToolMessageParam(
             tool_call_id=self._tool_call_id,
             role="tool",
-            content=json.dumps([content.model_dump() for content in result.content]),  # type: ignore[union-attr]
+            content=json.dumps([content.model_dump() for content in result.content]),
         )
 
 

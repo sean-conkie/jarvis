@@ -7,6 +7,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.logging import DefaultFormatter
 
+from api.services.agent.initialise import initialise_agent_registry
 from api.v1.router import router as v1_router
 
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +22,7 @@ async def lifespan(
     app: FastAPI,  # pylint: disable=unused-argument, redefined-outer-name
 ):
     """Application lifespan context manager."""
+    await initialise_agent_registry()
     yield
 
 
@@ -28,8 +30,12 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_tags=[
         {
+            "name": "agent",
+            "description": "List and interact with agents.",
+        },
+        {
             "name": "chat",
-            "description": "Chat service.",
+            "description": "Chat to JARVIS.",
         },
     ],
 )

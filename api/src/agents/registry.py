@@ -49,6 +49,10 @@ class AgentRegistry:
         if not hasattr(self, "_agents"):
             self._agents: Dict[str, BaseAgent] = {}
 
+    def __iter__(self):
+        """Return an iterator over the registered agents."""
+        return iter(self._agents.values())
+
     def register(self, agent: BaseAgent):
         """Register a new agent in the registry.
 
@@ -146,6 +150,7 @@ class AgentRegistry:
             context=context,
             event_queue=queue,
         )
+        await queue.close()
 
 
 agent_registry = AgentRegistry()

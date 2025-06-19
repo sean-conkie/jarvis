@@ -1,7 +1,6 @@
 """Base classes for agents and MCP sessions."""
 
 import asyncio
-from copy import deepcopy
 from typing import Annotated, List, Optional
 from uuid import uuid4
 
@@ -134,17 +133,14 @@ class BaseAgent(ConfiguredBaseModel, AgentExecutor, AgentCard):
                 *[self._process_tool_call(tool_call) for tool_call in tool_calls]
             )
 
-            loop_messages = deepcopy(messages)
-            loop_messages.append(
-                create_message(**response.choices[0].message.model_dump())
-            )
-            loop_messages.extend(tool_responses)
+            messages.append(create_message(**response.choices[0].message.model_dump()))
+            messages.extend(tool_responses)
 
             # return the tool responses to the model, if we get more tool calls these
             # will be processed in the next loop
             # if we get a response it will be saved after the loop
             response = await self._get_llm_response(
-                loop_messages,
+                messages,
                 model,
                 tools=tools,
                 tool_choice=tool_choice,
