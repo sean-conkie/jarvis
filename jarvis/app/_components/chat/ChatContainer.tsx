@@ -3,6 +3,8 @@
 import React, { PropsWithChildren } from "react";
 import { Input, InputProps } from "./Input";
 import Message, { MessageProps } from "./Message";
+import Content from "../layout/Content";
+import Container from "../layout/Container";
 
 type BaseProps = PropsWithChildren;
 
@@ -13,19 +15,11 @@ type ChatContainerComponent = React.FC<BaseProps> & {
 };
 
 const ChatContainer: ChatContainerComponent = ({ children }: BaseProps) => {
-  return (
-    <div className="flex flex-col gap-2 h-full w-full overflow-y-scroll items-baseline">
-      {children}
-    </div>
-  );
+  return <Container className="items-baseline">{children}</Container>;
 };
 
 const Stream: React.FC<BaseProps> = ({ children }) => {
-  return (
-    <div className="flex flex-col w-full p-4 rounded-md grow bg-base-100 gap-4">
-      {children}
-    </div>
-  );
+  return <Content>{children}</Content>;
 };
 
 ChatContainer.Input = Input;
