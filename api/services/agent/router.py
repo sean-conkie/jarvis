@@ -37,9 +37,28 @@ job_generators: Dict[str, AsyncGenerator[str, None]] = {}
 
 
 async def process_message(
-    agentId: str, message: RunAgentInput
+    agentId: str, message: RunAgentInput  # noqa: N803
 ) -> AsyncGenerator[str, None]:
-    """Process the message using the pipeline."""
+    """Process a user message for a given agent and streams Server-Sent Events (SSE) representing the agent's response.
+
+    This coroutine yields encoded SSE events for the following stages:
+        - Run started
+        - Assistant message start
+        - Assistant message content (streamed in chunks)
+        - Assistant message end
+        - Run finished
+
+    Args:
+        agentId (str): The unique identifier of the agent to execute.
+        message (RunAgentInput): The input message containing user content, thread ID, and run ID.
+
+    Yields:
+        str: Encoded SSE event strings representing the progress and content of the agent's response.
+
+    Raises:
+        Any exceptions raised by the agent execution or event streaming will propagate.
+
+    """
     # Create an event encoder to properly format SSE events
     encoder = EventEncoder()
 
@@ -112,7 +131,7 @@ async def process_message(
     "{agentId}/start", description="Send new chat message and start processing."
 )
 async def send_message(
-    agentId: str,
+    agentId: str,  # noqa: N803
     message: RunAgentInput,
 ):
     """Send a new chat message."""
@@ -125,7 +144,7 @@ async def send_message(
 
 
 @router.get("/stream/{runId}", description="Stream chat message updates via SSE.")
-async def stream_message(runId: str):  # noqa: N803 # pylint: disable=invalid-name
+async def stream_message(runId: str):  # noqa: N803
     """Return an SSE stream for the provided job id."""
     generator = job_generators.get(runId)
     if generator is None:

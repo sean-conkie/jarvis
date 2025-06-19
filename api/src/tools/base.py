@@ -1,7 +1,5 @@
 """Base class for tools."""
 
-# pylint: disable=invalid-name
-
 import json
 from typing import Any, Generic, Type, TypeVar, Union, overload
 

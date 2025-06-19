@@ -79,7 +79,7 @@ class AgentRegistry:
         """
         return self._agents
 
-    def get_agent(self, id: str) -> BaseAgent:  # pylint: disable=redefined-builtin
+    def get_agent(self, id: str) -> BaseAgent:
         """Retrieve a registered agent class by its name.
 
         Args:
@@ -103,7 +103,7 @@ class AgentRegistry:
     @validate_options(A2AOptions)
     async def execute_agent(
         self,
-        id: str,  # pylint: disable=redefined-builtin
+        id: str,
         queue: EventQueue,
         options: Union[A2AOptions, dict[str, Any]],
     ) -> None:

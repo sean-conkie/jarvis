@@ -81,7 +81,7 @@ def create_message(
 ) -> ChatCompletionFunctionMessageParam: ...
 
 
-def create_message(  # pylint: disable=unused-argument, line-too-long
+def create_message(  # pylint: disable=unused-argument
     content: Union[
         str,
         Iterable[ChatCompletionContentPartTextParam],

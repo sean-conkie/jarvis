@@ -161,7 +161,7 @@ async def send_message(
 
 
 @router.get("/stream/{runId}", description="Stream chat message updates via SSE.")
-async def stream_message(runId: str):  # noqa: N803 # pylint: disable=invalid-name
+async def stream_message(runId: str):  # noqa: N803
     """Return an SSE stream for the provided job id."""
     generator = job_generators.get(runId)
     if generator is None:

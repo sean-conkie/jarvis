@@ -40,3 +40,6 @@ unsafe-fixes = true
 [tool.ruff.lint]
 select = [ "D", "E", "F", "I", "N", "W",]
 ignore = [ "D107", "D203", "D213", "D400", "D408", "D407", "D409", "D105",]
+
+[tool.pylint]
+disable=["C0103", "C0301", "W0622"]
