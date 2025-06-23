@@ -32,6 +32,15 @@ async def list_agents() -> List[AgentCard]:
     return [agent.card for agent in agent_registry]
 
 
+@router.get("/{agentId}", description="Get agent details by ID.")
+async def get_agent(agentId: str) -> AgentCard:  # noqa: N803
+    """Get details of a specific agent by its ID."""
+    agent = agent_registry.get_agent(agentId)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent.card
+
+
 # In-memory store mapping job IDs to generators
 job_generators: Dict[str, AsyncGenerator[str, None]] = {}
 
