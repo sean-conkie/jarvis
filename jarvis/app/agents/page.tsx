@@ -1,36 +1,30 @@
-"use client";
-
 import { AgentCard } from "@/types/agents";
 import { backendAxiosInstance } from "@/utils/backendUtils";
-import { useEffect, useState } from "react";
+import axios from "axios";
+import { Logs, MessageCircle } from "lucide-react";
 import Container from "../_components/layout/Container";
 import Content from "../_components/layout/Content";
-import Loading from "../_components/layout/Loading";
-import { Logs, MessageCircle } from "lucide-react";
 
-const AgentsPage = () => {
-  // manage state for agents
-  const [agents, setAgents] = useState<AgentCard[]>([]);
-  // manage state for loading agents
-  const [loading, setLoading] = useState<boolean>(false);
+const AgentsPage = async () => {
+  const response = await backendAxiosInstance
+    .get<AgentCard[]>("/agent")
+    .catch((error) => {
+      if (axios.isAxiosError(error)) {
+        // Handle other Axios errors
+        if (error.response) {
+          console.error(error.response.statusText);
+        } else if (error.request) {
+          console.error("No response received");
+        } else {
+          console.error(error.message);
+        }
+      } else {
+        console.error(`Error fetching agents:`, error);
+      }
 
-  // load agents from the server
-  const loadAgents = async () => {
-    setLoading(true);
-    try {
-      const response = await backendAxiosInstance.get<AgentCard[]>("/agent");
-      setAgents(response.data);
-    } catch (error) {
-      console.error("Failed to load agents:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load agents on component mount
-  useEffect(() => {
-    loadAgents();
-  }, []);
+      return null;
+    });
+  const agents = response?.data;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 h-full gap-2">
@@ -47,13 +41,7 @@ const AgentsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5}>
-                    <Loading />
-                  </td>
-                </tr>
-              ) : (
+              {agents ? (
                 agents.map((agent) => {
                   return (
                     <tr key={agent.name}>
@@ -86,7 +74,12 @@ const AgentsPage = () => {
                           <button className="btn btn-ghost btn-xs">
                             <MessageCircle />
                           </button>
-                          <a href={`/agents/${agent.name.replace(/ /g, '-').toLowerCase()}`} className="btn btn-ghost btn-xs">
+                          <a
+                            href={`/agents/${agent.name
+                              .replace(/ /g, "-")
+                              .toLowerCase()}`}
+                            className="btn btn-ghost btn-xs"
+                          >
                             <Logs />
                           </a>
                         </div>
@@ -94,6 +87,12 @@ const AgentsPage = () => {
                     </tr>
                   );
                 })
+              ) : (
+                <tr>
+                  <td colSpan={5} className="text-center">
+                    No agents found.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

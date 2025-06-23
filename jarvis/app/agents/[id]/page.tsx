@@ -5,11 +5,34 @@ import AgentInputOutputCard from "./_components/AgentInputOutputCard";
 import AgentProviderCard from "./_components/AgentProviderCard";
 import AgentSummaryCard from "./_components/AgentSummaryCard";
 import AgentSkillCard from "./_components/AgentSkillCard";
+import axios from "axios";
+import { notFound } from "next/navigation";
 
 const AgentPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
-  const response = await backendAxiosInstance.get<AgentCard>(`/agent/${id}`);
+  const response = await backendAxiosInstance
+    .get<AgentCard>(`/agent/${id}`)
+    .catch((error) => {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // Handle 404 error specifically, e.g., redirect to a not found page
+        console.error(`Agent with ID ${id} not found.`);
+        notFound();
+      } else if (axios.isAxiosError(error)) {
+        // Handle other Axios errors
+        if (error.response) {
+          console.error(error.response.statusText);
+        } else if (error.request) {
+          console.error("No response received");
+        } else {
+          console.error(error.message);
+        }
+      } else {
+        console.error(`Error fetching agent with ID ${id}:`, error);
+      }
+
+      throw error; // Re-throw to handle it in the calling context
+    });
   const agent = response.data;
 
   return (
