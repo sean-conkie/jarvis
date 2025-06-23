@@ -35,6 +35,9 @@ async def list_agents() -> List[AgentCard]:
 @router.get("/{agentId}", description="Get agent details by ID.")
 async def get_agent(agentId: str) -> AgentCard:  # noqa: N803
     """Get details of a specific agent by its ID."""
+    if agentId not in agent_registry:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
     agent = agent_registry.get_agent(agentId)
     if agent is None:
         raise HTTPException(status_code=404, detail="Agent not found")
