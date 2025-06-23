@@ -11,7 +11,7 @@ export const useNavigation = () => {
         name: "Chat",
         href: "/",
         icon: <MessageCircle className="text-icon" />,
-        active: pathname !== "/agents",
+        active: !pathname.startsWith("/agents"),
       },
       {
         name: "Agents",

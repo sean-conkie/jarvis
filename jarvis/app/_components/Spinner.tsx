@@ -38,6 +38,16 @@ const labelSize: Record<NonNullable<SpinnerProps["spinnerSize"]>, string> = {
   lg: "text-lg",
 };
 
+/**
+ * Renders a customizable loading spinner with an optional label.
+ *
+ * @param {SpinnerProps} props - The props for the Spinner component.
+ * @param {string} [props.className] - Additional CSS classes for the wrapper element.
+ * @param {string} [props.label] - Optional label to display next to the spinner.
+ * @param {keyof typeof spinnerMap} [props.spinner] - The type of spinner to display, mapped from `spinnerMap`.
+ * @param {keyof typeof spinnerSizeMap} [props.spinnerSize] - The size of the spinner, mapped from `spinnerSizeMap`.
+ * @returns {JSX.Element} The rendered spinner component.
+ */
 const Spinner = ({ className, label, spinner, spinnerSize }: SpinnerProps) => {
   const classes = ["loading"];
 

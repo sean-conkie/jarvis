@@ -33,7 +33,7 @@ const AgentsPage = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 h-full gap-2 lg:gap-0">
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 h-full gap-2">
       <Container className="col-span-1 lg:col-span-2">
         <Content>
           <table className="table">
@@ -86,9 +86,9 @@ const AgentsPage = () => {
                           <button className="btn btn-ghost btn-xs">
                             <MessageCircle />
                           </button>
-                          <button className="btn btn-ghost btn-xs">
+                          <a href={`/agents/${agent.name.replace(/ /g, '-').toLowerCase()}`} className="btn btn-ghost btn-xs">
                             <Logs />
-                          </button>
+                          </a>
                         </div>
                       </td>
                     </tr>
