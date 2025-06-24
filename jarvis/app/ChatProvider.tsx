@@ -7,6 +7,7 @@ import {
   EventType,
   Message,
   RunAgentInput,
+  TextMessageStartEvent,
   ToolCall,
   ToolCallArgsEvent,
   ToolCallEndEvent,
@@ -207,11 +208,23 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               (msg) => msg.id !== "placeholder"
             );
 
+            const message = validated.data as TextMessageStartEvent;
+
+            // if the message already exists, do not create a new one
+            const existingMessage = messagesRef.current.find(
+              (msg) => msg.id === message.messageId
+            );
+
+            if (existingMessage) {
+              // If the message already exists, just return
+              return;
+            }
+
             // If the event is a message start, create a new message object
             const newEventMessage: Message = {
-              id: validated.data.messageId || uuidv4(),
+              id: message.messageId || uuidv4(),
               content: "",
-              role: validated.data.role || "assistant",
+              role: message.role || "assistant",
               toolCalls: [],
             };
 
@@ -370,7 +383,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               try {
                 toolCallArgs = JSON.parse(toolCall.function.arguments);
               } catch (error) {
-                console.error("Failed to parse tool call arguments:", error);
+                console.debug("Failed to parse tool call arguments:", error);
                 toolCallArgs = {}
               }
               
