@@ -33,7 +33,6 @@ import { ThemeArgs, useTheme } from "./_components/theme/ThemeProvider";
 interface ChatContextValue {
   threadId: string | null;
   createNewChat: () => string;
-  messages: Message[];
   messageEvents: Event[];
   runs: ChatRun[];
   handleSubmitMessage: (message: string, threadId: string) => Promise<void>;
@@ -116,10 +115,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     return newId;
   }, []);
 
-  // Use the ref to store messages prior to the current run
-  // This allows us to keep track of all messages across runs
-  const messagesRef = useRef<Message[]>([]);
-
   // State to hold message events
   const [messageEvents, setMessageEvents] = useState<Event[]>([]);
 
@@ -199,6 +194,14 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     [getMessageFromToolCallId]
   );
 
+  // callback to aggregate list of messages from runs
+  const getMessagesFromRuns = useCallback((): Message[] => {
+    // Aggregate messages from all runs
+    return runsRef.current.reduce((acc: Message[], run) => {
+      return [...acc, run.userMessage, ...run.agentMessages];
+    }, []);
+  }, []);
+
   // Handle submitting a message
   const handleSubmitMessage = useCallback(
     async (message: string, threadId: string) => {
@@ -223,7 +226,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         threadId,
         runId: runIdRef.current,
         state: {}, // Assuming state is an empty object for now
-        messages: [...messagesRef.current, newMessage],
+        messages: [...getMessagesFromRuns(), newMessage],
         tools: [
           {
             name: themeToolRef.current.name,
@@ -634,20 +637,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               setRuns(runsRef.current);
             });
 
-            const currentRun = runsRef.current.find(
-              (run) => run.id === runIdRef.current
-            );
-            if (currentRun) {
-              // Update the messagesRef with the final messages
-              console.log("Updating messagesRef with current run messages");
-              messagesRef.current = [
-                ...messagesRef.current,
-                currentRun.userMessage,
-                ...runMessagesRef.current,
-              ];
-              console.log("Updated messagesRef:", messagesRef.current);
-            }
-
             eventSource.close();
             return;
           }
@@ -678,7 +667,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         console.error("Something went wrong with chat 😔");
       }
     },
-    [getMessageFromToolCallId, getToolCall]
+    [getMessageFromToolCallId, getToolCall, getMessagesFromRuns]
   );
 
   return (
@@ -686,7 +675,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       value={{
         ...threadIdValue,
         createNewChat,
-        messages: messagesRef.current,
         ...messageEventsValue,
         ...runsValue,
         handleSubmitMessage,
