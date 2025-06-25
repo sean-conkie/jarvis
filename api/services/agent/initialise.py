@@ -38,7 +38,7 @@ async def initialise_agent_registry() -> None:
             ),
         ],
         allowed_tools={"list_notifications", "get_notification_details"},
-        model="gpt-4o_2024-08-06",
+        model="gpt-4o-mini_2024-07-18",
         use_stdio=True,
     )
 

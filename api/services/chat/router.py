@@ -87,7 +87,7 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
     tools.extend(agent_registry.agents_as_tools)
 
     stream = await client.chat.completions.create(
-        model="gpt-4o_2024-08-06",
+        model="gpt-4o-mini_2024-07-18",
         messages=messages,
         stream=False,
         tools=tools,
@@ -207,7 +207,7 @@ async def process_message(message: RunAgentInput) -> AsyncGenerator[str, None]:
                 messages.extend(tool_responses)
 
                 stream = await client.chat.completions.create(
-                    model="gpt-4o_2024-08-06",
+                    model="gpt-4o-mini_2024-07-18",
                     messages=messages,
                     stream=False,
                     tools=tools,

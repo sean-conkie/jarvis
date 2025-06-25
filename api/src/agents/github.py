@@ -41,7 +41,7 @@ async def create_github_agent(
     instructions: str,
     skills: list[AgentSkill] = None,
     allowed_tools: set[str] = None,
-    model: str = "gpt-4o_2024-08-06",
+    model: str = "gpt-4o-mini_2024-07-18",
     use_stdio: bool = settings.use_stdio,
 ) -> BaseAgent:
     """Create and configures a GitHub agent with specified parameters.
@@ -56,7 +56,7 @@ async def create_github_agent(
         allowed_tools (set[str], optional): A set of tool names the agent is permitted to use.
             Defaults to None.
         model (str, optional): The model identifier to use for the agent. Defaults to
-            "gpt-4o_2024-08-06".
+            "gpt-4o-mini_2024-07-18".
         use_stdio (bool, optional): Whether to use stdio for communication. Defaults to True.
 
     Returns:
