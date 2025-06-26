@@ -81,7 +81,7 @@ def create_message(
 ) -> ChatCompletionFunctionMessageParam: ...
 
 
-def create_message(  # pylint: disable=unused-argument, line-too-long
+def create_message(  # pylint: disable=unused-argument
     content: Union[
         str,
         Iterable[ChatCompletionContentPartTextParam],
@@ -118,21 +118,23 @@ def create_message(  # pylint: disable=unused-argument, line-too-long
         "refusal": refusal,
         "tool_calls": tool_calls,
     }
-    args = {k: v for k, v in args.items() if v}
+    args = {k: v for k, v in args.items() if v is not None}
 
-    if role == "system":
-        return ChatCompletionSystemMessageParam(**args)
+    if role == "agent":
+        # map A2A agent role to OpenAI assistant role
+        role = "assistant"
+        args["role"] = "assistant"
 
-    if role == "user":
-        return ChatCompletionUserMessageParam(**args)
-
-    if role == "assistant":
-        return ChatCompletionAssistantMessageParam(**args)
-
-    if role == "tool":
-        return ChatCompletionToolMessageParam(**args)
-
-    if role == "function":
-        return ChatCompletionFunctionMessageParam(**args)
-
-    raise ValueError("Invalid role")
+    match role:
+        case "system":
+            return ChatCompletionSystemMessageParam(**args)
+        case "user":
+            return ChatCompletionUserMessageParam(**args)
+        case "assistant":
+            return ChatCompletionAssistantMessageParam(**args)
+        case "tool":
+            return ChatCompletionToolMessageParam(**args)
+        case "function":
+            return ChatCompletionFunctionMessageParam(**args)
+        case _:
+            raise ValueError("Invalid role")

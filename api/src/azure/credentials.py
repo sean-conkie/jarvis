@@ -1,22 +1,15 @@
 """Function for authenticating with Azure."""
 
-from typing import Optional
+from typing import Annotated, Any, Optional
 
 from azure.identity import ClientSecretCredential
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr, model_serializer
+
+from api.src.settings import ConfiguredBaseSettings
 
 
-class AzureCredentials(BaseSettings):
+class AzureCredentials(ConfiguredBaseSettings):
     """Azure credentials."""
-
-    model_config = SettingsConfigDict(
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_nested_delimiter="__",
-        extra="ignore",
-    )
 
     azure_client_id: Optional[SecretStr] = None
     """The service principal's client ID"""
@@ -27,11 +20,13 @@ class AzureCredentials(BaseSettings):
     azure_tenant_id: Optional[SecretStr] = None
     """ID of the service principal's tenant. Also called its "directory" ID"""
 
-    openai_api_base: Optional[str] = None
+    openai_api_base: Annotated[
+        Optional[str], Field(serialization_alias="azure_endpoint")
+    ] = None
     """The Azure endpoint, including the resource"""
-    openai_api_version: Optional[str] = None
-    """The API version"""
-    openai_api_key: Optional[SecretStr] = None
+    openai_api_version: Annotated[
+        Optional[str], Field(serialization_alias="api_version")
+    ] = None
 
     @property
     def api_key(self) -> SecretStr:
@@ -53,9 +48,6 @@ class AzureCredentials(BaseSettings):
             if self.azure_scope is None:
                 raise ValueError("Azure scope must be set to get the API key")
             return SecretStr(self._get_credentials().get_token(self.azure_scope).token)
-
-        if self.openai_api_key:
-            return self.openai_api_key
 
         raise ValueError("Credentials must be set")
 
@@ -95,3 +87,37 @@ class AzureCredentials(BaseSettings):
             )
 
         raise ValueError("Azure credentials must be set")
+
+    def __hash__(self) -> int:
+        """Hash the Azure credentials.
+
+        Returns
+            int: The hash of the Azure credentials.
+
+        """
+        return hash(
+            (
+                self.azure_client_id,
+                self.azure_client_secret,
+                self.azure_scope,
+                self.azure_tenant_id,
+                self.openai_api_base,
+                self.openai_api_version,
+            )
+        )
+
+    @model_serializer(mode="plain")
+    def serialise_to_dict(self) -> Any:
+        """Serialize the credential attributes to a dictionary.
+
+        Returns:
+            dict: A dictionary containing the Azure endpoint, API version, and API key.
+
+        """
+        attrs = {
+            "azure_endpoint": self.openai_api_base,
+            "api_version": self.openai_api_version,
+        }
+
+        attrs["api_key"] = self.api_key.get_secret_value()
+        return attrs

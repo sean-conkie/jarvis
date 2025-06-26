@@ -34,7 +34,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
         theme: {
           type: "string" as const,
           description: "The theme to set for the application",
-          enum: ["light", "dark", "cupcake"],
+          enum: ["light", "dark", "cupcake", "synthwave"],
         },
       },
       required: ["theme"] as const,

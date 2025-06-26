@@ -12,3 +12,7 @@ wheels/
 
 .vscode
 *.code-workspace
+
+# Jupyter Notebook files
+.ipynb_checkpoints/
+*.ipynb

@@ -1,0 +1,8 @@
+/* Table styles */
+
+@layer components {
+  /* style a table with 2 columns where the first column is the header */
+  .table-header-column > tbody > tr > td:first-child {
+    @apply text-neutral font-semibold;
+  }
+}

@@ -5,9 +5,13 @@ description = "Experiments with agentic protocols."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "a2a-sdk>=0.2.5",
     "ag-ui-protocol>=0.1.5",
     "azure-identity>=1.23.0",
+    "cachetools>=6.0.0",
     "fastapi>=0.115.12",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.9.4",
     "openai>=1.84.0",
     "pydantic>=2.11.5",
     "pydantic-settings>=2.9.1",
@@ -16,6 +20,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "ipykernel>=6.29.5",
     "ruff>=0.11.13",
 ]
 
@@ -35,3 +40,6 @@ unsafe-fixes = true
 [tool.ruff.lint]
 select = [ "D", "E", "F", "I", "N", "W",]
 ignore = [ "D107", "D203", "D213", "D400", "D408", "D407", "D409", "D105",]
+
+[tool.pylint]
+disable=["C0103", "C0301", "W0622"]

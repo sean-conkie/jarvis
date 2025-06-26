@@ -1,0 +1,7 @@
+@layer utilities {
+  /* size an icon based on parent font size */
+  .text-icon {
+    width: 1em;
+    height: 1em;
+  }
+}
