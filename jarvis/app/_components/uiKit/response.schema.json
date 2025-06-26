@@ -1,0 +1,98 @@
+{
+  "$defs": {
+    "Card": {
+      "description": "Represents a card component.",
+      "properties": {
+        "type": {
+          "const": "card",
+          "default": "card",
+          "title": "Type",
+          "type": "string"
+        },
+        "props": {
+          "anyOf": [{ "$ref": "#/$defs/Props" }, { "type": "null" }],
+          "description": "Properties specific to the card component"
+        },
+        "children": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  { "type": "string" },
+                  { "$ref": "#/$defs/Element" },
+                  { "$ref": "#/$defs/Card" }
+                ]
+              },
+              "type": "array"
+            },
+            { "type": "null" }
+          ],
+          "description": "Children of the element, can be strings or nested elements",
+          "title": "Children"
+        }
+      },
+      "title": "Card",
+      "type": "object"
+    },
+    "Element": {
+      "description": "Represents an HTML element or a component.",
+      "properties": {
+        "type": {
+          "description": "Type of the element",
+          "enum": ["div", "span", "p", "h1", "h2", "h3", "h4", "h5", "h6"],
+          "title": "Type",
+          "type": "string"
+        },
+        "props": {
+          "anyOf": [{ "$ref": "#/$defs/Props" }, { "type": "null" }],
+          "description": "Properties of the element, can include various attributes"
+        },
+        "children": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  { "type": "string" },
+                  { "$ref": "#/$defs/Element" },
+                  { "$ref": "#/$defs/Card" }
+                ]
+              },
+              "type": "array"
+            },
+            { "type": "null" }
+          ],
+          "description": "Children of the element, can be strings or nested elements",
+          "title": "Children"
+        }
+      },
+      "required": ["type"],
+      "title": "Element",
+      "type": "object"
+    },
+    "Props": {
+      "description": "Properties for HTML elements or components.",
+      "properties": {
+        "className": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "description": "CSS classes for styling",
+          "title": "Classname"
+        }
+      },
+      "title": "Props",
+      "type": "object"
+    }
+  },
+  "description": "Response model containing a list of elements.",
+  "properties": {
+    "elements": {
+      "description": "List of elements in the response",
+      "items": { "$ref": "#/$defs/Element" },
+      "title": "Elements",
+      "type": "array"
+    }
+  },
+  "title": "Response",
+  "type": "object",
+  "required": ["elements"]
+}

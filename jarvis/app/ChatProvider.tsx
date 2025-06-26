@@ -29,6 +29,7 @@ import { flushSync } from "react-dom";
 import { v4 as uuidv4 } from "uuid";
 import z from "zod";
 import { ThemeArgs, useTheme } from "./_components/theme/ThemeProvider";
+import { UIKitTool } from "./_components/uiKit/tool";
 
 interface ChatContextValue {
   threadId: string | null;
@@ -91,6 +92,7 @@ export type ChatRun = {
 };
 
 export const ChatProvider = ({ children }: ChatProviderProps) => {
+  // Manage tools
   // manage the theme tool state
   const { themeTool } = useTheme();
   const themeToolRef = React.useRef(themeTool);
@@ -99,6 +101,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   useEffect(() => {
     themeToolRef.current = themeTool;
   }, [themeTool]);
+
+  // UI Kit Tool
+  const uiKitTool = useMemo(() => new UIKitTool(), []);
 
   // State to hold the current thread ID
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -233,6 +238,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             description: themeToolRef.current.description,
             parameters: themeToolRef.current.parameters,
           },
+          {
+            name: uiKitTool.name,
+            description: uiKitTool.description,
+            parameters: uiKitTool.parameters,
+          }
         ],
         context: [], // Assuming no context is provided for now
         forwardedProps: "", // Assuming no forwarded props for now
@@ -667,7 +677,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         console.error("Something went wrong with chat 😔");
       }
     },
-    [getMessageFromToolCallId, getToolCall, getMessagesFromRuns]
+    [getMessageFromToolCallId, getToolCall, getMessagesFromRuns, uiKitTool]
   );
 
   return (
