@@ -118,7 +118,9 @@ def create_message(  # pylint: disable=unused-argument
         "refusal": refusal,
         "tool_calls": tool_calls,
     }
-    args = {k: v for k, v in args.items() if v is not None}
+    args = {
+        k: v for k, v in args.items() if v or (isinstance(v, str) and v.strip() == "")
+    }
 
     if role == "agent":
         # map A2A agent role to OpenAI assistant role
