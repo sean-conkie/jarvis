@@ -10,7 +10,7 @@
           "type": "string"
         },
         "props": {
-          "anyOf": [{ "$ref": "#/$defs/Props" }, { "type": "null" }],
+          "anyOf": [{ "$ref": "#/$defs/CardProps" }, { "type": "null" }],
           "description": "Properties specific to the card component"
         },
         "children": {
@@ -32,6 +32,90 @@
         }
       },
       "title": "Card",
+      "type": "object"
+    },
+    "CardProps": {
+      "properties": {
+        "title": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "description": "Title of the card",
+          "title": "Title"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "enum": [
+                "primary",
+                "secondary",
+                "success",
+                "danger",
+                "warning",
+                "info",
+                "neutral"
+              ],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "description": "Tailwind CSS styles for components",
+          "title": "Style"
+        },
+        "border": {
+          "anyOf": [
+            {
+              "enum": ["solid", "dashed", "dotted", "double", "null"],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "description": "Tailwind CSS border style classes",
+          "title": "Border"
+        },
+        "borderRadius": {
+          "anyOf": [
+            {
+              "enum": ["null", "sm", "md", "lg", "xl", "2xl", "3xl", "4xlfull"],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "description": "Tailwind CSS border radius classes",
+          "title": "Borderradius"
+        },
+        "borderStyle": {
+          "anyOf": [
+            {
+              "enum": [
+                "primary",
+                "secondary",
+                "success",
+                "danger",
+                "warning",
+                "info",
+                "neutral"
+              ],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "description": "Tailwind CSS styles for components",
+          "title": "Borderstyle"
+        },
+        "shadow": {
+          "anyOf": [
+            {
+              "enum": ["2xs", "xs", "sm", "md", "lg", "xl", "2xl", "null"],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
+          "description": "Tailwind CSS shadow classes",
+          "title": "Shadow"
+        }
+      },
+      "required": ["style", "border", "borderRadius", "borderStyle", "shadow"],
+      "title": "CardProps",
       "type": "object"
     },
     "Element": {
@@ -73,7 +157,60 @@
       "description": "Properties for HTML elements or components.",
       "properties": {
         "className": {
-          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "description": "Tailwind CSS padding classes",
+              "pattern": "^p(?:b|e|l|r|s|t|x|y)?-(?:px|[\\[\\(]\\S+[\\]\\)]|[0-9]{0,2})$",
+              "type": "string"
+            },
+            {
+              "description": "Tailwind CSS margin classes",
+              "pattern": "^m(?:b|e|l|r|s|t|x|y)?-(?:auto|px|[\\[\\(]\\S+[\\]\\)]|[0-9]{0,2})$",
+              "type": "string"
+            },
+            {
+              "description": "Tailwind CSS height classes",
+              "pattern": "^h-(?:auto|px|full|[\\[\\(]\\S+[\\]\\)]|\\d\\/\\d|[0-9]{0,2})$",
+              "type": "string"
+            },
+            {
+              "description": "Tailwind CSS font size classes",
+              "enum": [
+                "text-xs",
+                "text-sm",
+                "text-base",
+                "text-lg",
+                "text-xl",
+                "text-2xl",
+                "text-3xl",
+                "text-4xl",
+                "text-5xl",
+                "text-6xl"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Tailwind CSS font style classes",
+              "enum": ["italic", "not-italic"],
+              "type": "string"
+            },
+            {
+              "description": "Tailwind CSS font weight classes",
+              "enum": [
+                "font-thin",
+                "font-extralight",
+                "font-light",
+                "font-normal",
+                "font-medium",
+                "font-semibold",
+                "font-bold",
+                "font-extrabold",
+                "font-black"
+              ],
+              "type": "string"
+            },
+            { "type": "null" }
+          ],
           "default": null,
           "description": "CSS classes for styling",
           "title": "Classname"
@@ -87,12 +224,13 @@
   "properties": {
     "elements": {
       "description": "List of elements in the response",
-      "items": { "$ref": "#/$defs/Element" },
+      "items": {
+        "anyOf": [{ "$ref": "#/$defs/Element" }, { "$ref": "#/$defs/Card" }]
+      },
       "title": "Elements",
       "type": "array"
     }
   },
   "title": "Response",
-  "type": "object",
-  "required": ["elements"]
+  "type": "object"
 }

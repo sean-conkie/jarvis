@@ -6,6 +6,12 @@
   themes: light --default, dark --prefersdark, cupcake, synthwave;
 }
 
+@source inline("{m,p}{x,y,t,b,l,r,}-{px,auto,1..10}");
+@source inline("{w,h}-{px,auto,full,1..10}");
+@source inline("text-{xs,sm,base,lg,xl,2xl,3xl,4xl,5xl}");
+@source inline("font-thin,font-extralight,font-light,font-normal,font-medium,font-semibold,font-bold,font-extrabold,font-black,italic,not-italic");
+@source inline("border-1")
+
 :root {
   --background: #f3f4f6;
   --foreground: #171717;

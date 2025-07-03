@@ -1,5 +1,11 @@
 import Card from "../layout/Card";
 import { CardProps } from "./base";
+import {
+  borderRadiusMap,
+  borderStyleMap,
+  shadowMap,
+  styleMap,
+} from "./propUtils";
 
 /**
  * Renders a UI Kit Card component with an optional title and custom content.
@@ -10,9 +16,29 @@ import { CardProps } from "./base";
  * @param {string} [props.title] - Optional title to display at the top of the card.
  * @returns {JSX.Element} The rendered Card component.
  */
-const UIKitCard = ({ children, className, title }: CardProps) => {
+const UIKitCard = ({
+  border,
+  borderRadius,
+  children,
+  className,
+  title,
+  shadow,
+  style,
+}: CardProps) => {
+  const classNames = [
+    className,
+    style ? styleMap[style as keyof typeof styleMap] : "neutral",
+    borderRadius
+      ? borderRadiusMap[borderRadius as keyof typeof borderRadiusMap]
+      : "rounded-md",
+    border ? borderStyleMap[border as keyof typeof borderStyleMap] + ' border-1' : "solid",
+    shadow ? shadowMap[shadow as keyof typeof shadowMap] : "md",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <Card className={className}>
+    <Card className={classNames}>
       {title && <Card.Title>{title}</Card.Title>}
       {children}
     </Card>
